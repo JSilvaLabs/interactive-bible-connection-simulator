@@ -5,7 +5,7 @@ import ArcDiagram from './ArcDiagram'; // Import the ArcDiagram component
 
 /**
  * Wrapper component for the ArcDiagram.
- * Sets up the SVG container with margins suitable for a vertical layout
+ * Sets up the SVG container with adaptive margins suitable for vertical layout
  * and handles loading/placeholder states.
  */
 function ArcDiagramContainer({
@@ -17,47 +17,49 @@ function ArcDiagramContainer({
     onNodeHoverEnd,
     isLoading             // Boolean indicating data is being filtered/loaded
 }) {
-    // Define margins for axis, labels, and arc clearance
-    // Increased left margin for labels next to vertical axis
-    // Increased top/bottom slightly, reduced right compared to horizontal needs
-    const margin = { top: 40, right: 30, bottom: 40, left: 150 }; // Adjust left margin based on longest expected label
 
-    // Calculate inner dimensions for the diagram itself
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
+    // --- MVP v5.1: Adaptive Margins ---
+    const isSmallScreenWidth = width < 500; // Example threshold for reducing left margin
+    const margin = {
+        top: 30,
+        right: isSmallScreenWidth ? 10 : 30,   // Slightly less right margin on small screens
+        bottom: isSmallScreenWidth ? 40 : 60, // Less bottom margin if labels are smaller/hidden
+        left: isSmallScreenWidth ? 40 : 120 // Significantly less left margin on small screens
+    };
+    // --- End Adaptive Margins ---
+
+    // Calculate inner dimensions, ensuring they are not negative
+    const innerWidth = Math.max(1, width - margin.left - margin.right);
+    const innerHeight = Math.max(1, height - margin.top - margin.bottom);
 
     let content;
 
-    // Check if dimensions are valid *after* applying margins
-    if (innerWidth <= 20 || innerHeight <= 50) { // Need some minimal width/height
+    if (innerWidth <= 10 || innerHeight <= 50) { // Check if inner dimensions are too small
          content = (
             <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">
                 Container too small.
             </text>
          );
     } else if (isLoading) {
-        // Display loading indicator
         content = (
             <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">
                 Loading Connections...
             </text>
         );
     } else if (!data || !data.nodes || data.nodes.length === 0) {
-        // Display placeholder if no data or selection results in no nodes
         content = (
-            <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm">
-                { !data ? "Select Book/Chapter." : "No connections found." }
+            <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">
+                { !data ? "Select Book/Chapter above." : "No connections found for this selection." }
             </text>
         );
     } else {
-        // Data is valid and dimensions are sufficient, render the ArcDiagram within a translated group
+        // Render the ArcDiagram within a translated group using calculated inner dimensions
         content = (
-            // Apply margins via transform
             <g transform={`translate(${margin.left},${margin.top})`}>
                 <ArcDiagram
-                    data={data} // Pass the sorted nodes and filtered links
+                    data={data}
                     width={innerWidth}
-                    height={innerHeight} // Pass the calculated inner dimensions
+                    height={innerHeight}
                     onNodeSelect={onNodeSelect}
                     onNodeHoverStart={onNodeHoverStart}
                     onNodeHoverEnd={onNodeHoverEnd}
@@ -67,10 +69,9 @@ function ArcDiagramContainer({
     }
 
     return (
-        // The main SVG container takes the full passed width/height
-        <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900">
-             {/* Optional: Add a background rect for debugging margins */}
-             {/* <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="rgba(255,0,0,0.1)" /> */}
+        <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900" aria-label="Arc Diagram Visualization">
+             {/* Optional: Debug rectangle for inner dimensions */}
+             {/* <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="none" stroke="red" strokeDasharray="2,2" /> */}
             {content}
         </svg>
     );
