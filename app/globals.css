@@ -27,8 +27,6 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
-  /* Ensure overflow is handled, especially with fixed height layout */
-  /* overflow: hidden; */ /* Add this if using fixed h-screen on main */
 }
 
 
@@ -36,13 +34,14 @@ body {
 
 /* Container SVG */
 .arc-diagram-svg {
-  /* display: block; */ /* Useful for removing extra space below SVG */
+  display: block; /* Helps prevent extra space below SVG */
 }
 
 /* Arcs representing connections */
 .arc-path {
-  fill: none;
+  fill: none; /* Arcs are typically strokes */
   /* stroke, stroke-opacity, stroke-width usually set by D3 */
+  transition: stroke-opacity 0.1s linear, stroke-width 0.1s linear; /* Smooth hover transitions */
 }
 
 /* Node group (circle + text) */
@@ -53,7 +52,7 @@ body {
 /* Node circle */
 .arc-node circle {
    /* fill, stroke, etc. set by D3 */
-   transition: r 0.15s ease-in-out, fill-opacity 0.15s ease-in-out; /* Smooth hover */
+   transition: r 0.1s ease-in-out, fill-opacity 0.1s ease-in-out; /* Smooth hover */
 }
 
 /* Node text label */
@@ -61,19 +60,15 @@ body {
   /* font-size, fill set inline via D3/Tailwind */
   /* text-anchor, dy, transform set inline via D3 */
   pointer-events: none; /* Prevent labels blocking node hover */
-  transition: font-weight 0.15s ease-in-out;
+  transition: font-weight 0.1s ease-in-out;
 }
 
 
 /* Optional: Styling for ReferenceListPanel and MetadataPanel */
-/* Use classes applied in components or add specific rules here */
 .reference-list ul li:hover {
   background-color: rgba(0, 0, 0, 0.05);
-  /* cursor: pointer; */
 }
-.reference-metadata {
-    /* Add custom styles if needed */
-}
+.reference-metadata { }
 
 @media (prefers-color-scheme: dark) {
   .reference-list ul li:hover {
@@ -89,9 +84,9 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(150, 150, 150, 0.5); /* Adjust color/opacity */
+  background-color: rgba(150, 150, 150, 0.5);
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(120, 120, 120, 0.7); /* Adjust hover color */
+  background-color: rgba(120, 120, 120, 0.7);
 }

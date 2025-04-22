@@ -1,11 +1,12 @@
 "use client";
 
 import React from 'react';
-import ArcDiagram from './ArcDiagram'; // Import the new D3 component
+import ArcDiagram from './ArcDiagram'; // Import the ArcDiagram component
 
 /**
  * Wrapper component for the ArcDiagram.
- * Sets up the SVG container with margins and handles loading/placeholder states.
+ * Sets up the SVG container with margins suitable for a vertical layout
+ * and handles loading/placeholder states.
  */
 function ArcDiagramContainer({
     data,                 // { nodes: [canonically sorted], links: [] }
@@ -16,8 +17,10 @@ function ArcDiagramContainer({
     onNodeHoverEnd,
     isLoading             // Boolean indicating data is being filtered/loaded
 }) {
-    // Define margins for axis, labels, and giving arcs space
-    const margin = { top: 20, right: 30, bottom: 120, left: 30 }; // Increased bottom margin for labels
+    // Define margins for axis, labels, and arc clearance
+    // Increased left margin for labels next to vertical axis
+    // Increased top/bottom slightly, reduced right compared to horizontal needs
+    const margin = { top: 40, right: 30, bottom: 40, left: 150 }; // Adjust left margin based on longest expected label
 
     // Calculate inner dimensions for the diagram itself
     const innerWidth = width - margin.left - margin.right;
@@ -26,10 +29,10 @@ function ArcDiagramContainer({
     let content;
 
     // Check if dimensions are valid *after* applying margins
-    if (innerWidth <= 0 || innerHeight <= 0) {
+    if (innerWidth <= 20 || innerHeight <= 50) { // Need some minimal width/height
          content = (
             <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">
-                Container is too small to render diagram.
+                Container too small.
             </text>
          );
     } else if (isLoading) {
@@ -49,6 +52,7 @@ function ArcDiagramContainer({
     } else {
         // Data is valid and dimensions are sufficient, render the ArcDiagram within a translated group
         content = (
+            // Apply margins via transform
             <g transform={`translate(${margin.left},${margin.top})`}>
                 <ArcDiagram
                     data={data} // Pass the sorted nodes and filtered links
@@ -64,7 +68,9 @@ function ArcDiagramContainer({
 
     return (
         // The main SVG container takes the full passed width/height
-        <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block">
+        <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900">
+             {/* Optional: Add a background rect for debugging margins */}
+             {/* <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="rgba(255,0,0,0.1)" /> */}
             {content}
         </svg>
     );
