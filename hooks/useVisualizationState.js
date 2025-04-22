@@ -1,10 +1,16 @@
-// hooks/useVisualizationState.js (Correct MVP v6.0 Version)
+// hooks/useVisualizationState.js
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 // Import necessary functions from dataService
-import { getConnectionsFor, getChapters } from '@/utils/dataService';
+// Ensure getBooks is imported alongside getChapters and getConnectionsFor
+import { getConnectionsFor, getChapters, getBooks } from '@/utils/dataService';
 
+/**
+ * Custom hook to manage state related to user selections,
+ * data filtering for visualization, and interaction callbacks.
+ * Also handles setting the default selection after data loads.
+ */
 export function useVisualizationState(bibleData, allReferencesData) { // Takes loaded data as input
     // --- State for User Selections & View ---
     const [selectedBook, setSelectedBook] = useState(null);
@@ -20,33 +26,44 @@ export function useVisualizationState(bibleData, allReferencesData) { // Takes l
     const [selectedNodeId, setSelectedNodeId] = useState(null); // Clicked node ID
     const [hoveredNodeId, setHoveredNodeId] = useState(null); // Hovered node ID
 
-     // --- Effect to Set Default Selection (Moved from MainPage for encapsulation) ---
+     // --- Effect to Set Default Selection ---
      useEffect(() => {
-        // Set default only if bibleData is loaded and no book is selected yet
-        if (bibleData && !selectedBook && !selectedChapter) {
-            const books = getBooks(bibleData); // Need getBooks here or pass bookList
-            if (books.length > 0) {
-                const defaultBook = books[0];
+        // Set default only if bibleData is loaded/valid and no book is selected yet
+        // This prevents resetting selection if user navigates back/forth or data reloads
+        if (bibleData && bibleData.books && !selectedBook && !selectedChapter) {
+            // Call getBooks (needs to be imported)
+            const books = getBooks(bibleData);
+            if (books && books.length > 0) {
+                const defaultBook = books[0]; // First canonical book
+                // Call getChapters (needs to be imported)
                 const defaultChapters = getChapters(bibleData, defaultBook);
-                const defaultChapter = defaultChapters.length > 0 ? defaultChapters[0] : null;
+                const defaultChapter = defaultChapters.length > 0 ? defaultChapters[0] : null; // Chapter 1
+
                 if (defaultBook && defaultChapter !== null) {
+                    // Set state managed by this hook
                     setSelectedBook(defaultBook);
                     setSelectedChapter(defaultChapter);
-                    setChapterList(defaultChapters);
+                    setChapterList(defaultChapters); // Populate chapter list for the selector
                      console.log(`useVisState: Set default selection: ${defaultBook} ${defaultChapter}`);
+                } else {
+                     console.warn(`useVisState: Could not find chapters for default book: ${defaultBook}`);
                 }
+            } else {
+                 console.warn("useVisState: Book list derived from bibleData is empty.");
             }
         }
-    }, [bibleData, selectedBook, selectedChapter]); // Run when bibleData is loaded or selection cleared
+        // Run this effect when bibleData becomes available, or if selection is cleared
+    }, [bibleData, selectedBook, selectedChapter]);
 
 
     // --- Effect to Update Filtered Data ---
     useEffect(() => {
         let isMounted = true;
+        // Only filter if we have the necessary data and selections
         if (selectedBook && selectedChapter && allReferencesData) {
             setIsFiltering(true);
-            setSelectedNodeId(null);
-            setHoveredNodeId(null);
+            setSelectedNodeId(null); // Reset node selection when filter changes
+            setHoveredNodeId(null);  // Reset hover when filter changes
 
             requestAnimationFrame(() => { // Allow UI update before filtering
                 if (!isMounted) return;
@@ -60,39 +77,44 @@ export function useVisualizationState(bibleData, allReferencesData) { // Takes l
                      if (isMounted) setFilteredConnectionData(filteredData);
                 } catch (err) {
                     console.error("useVisualizationState: Filtering failed:", err);
-                     if (isMounted) setFilteredConnectionData(null);
+                     if (isMounted) setFilteredConnectionData(null); // Clear data on error
+                    // Consider setting an error state specific to filtering
                 } finally {
                      if (isMounted) setIsFiltering(false);
                 }
             });
         } else {
+            // Clear data if selection is incomplete
              if (isMounted) {
                 setFilteredConnectionData(null);
-                setIsFiltering(false); // Ensure reset if selection becomes incomplete
+                setIsFiltering(false); // Ensure reset
              }
         }
-        return () => { isMounted = false; };
-    }, [selectedBook, selectedChapter, viewMode, allReferencesData]);
+        return () => { isMounted = false; }; // Cleanup flag
+    }, [selectedBook, selectedChapter, viewMode, allReferencesData]); // Dependencies
 
     // --- Memoized Event Handlers ---
     const handleBookChange = useCallback((bookName) => {
         setSelectedBook(bookName);
-        setSelectedChapter(null);
+        setSelectedChapter(null); // Reset chapter selection
         setFilteredConnectionData(null); // Clear diagram immediately
+         // Update chapter list using getChapters (already imported)
         setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []);
-    }, [bibleData]); // Recreate if bibleData changes
+    }, [bibleData]); // Dependency on bibleData
 
     const handleChapterChange = useCallback((chapterNum) => {
         setSelectedChapter(chapterNum);
+        // Filtering effect runs automatically
     }, []);
 
     const handleToggleView = useCallback(() => {
         setViewMode(prevMode => (prevMode === 'chapter' ? 'verse' : 'chapter'));
+        // Filtering effect runs automatically
     }, []);
 
     const handleNodeSelect = useCallback((nodeId) => {
         setSelectedNodeId(nodeId);
-        setHoveredNodeId(null);
+        setHoveredNodeId(null); // Clear hover on click
     }, []);
 
     const handleNodeHoverStart = useCallback((nodeId) => {
@@ -105,9 +127,23 @@ export function useVisualizationState(bibleData, allReferencesData) { // Takes l
 
     // --- Return State and Handlers ---
     return {
-        selectedBook, selectedChapter, viewMode, chapterList, filteredConnectionData,
-        selectedNodeId, hoveredNodeId, isFiltering,
-        handleBookChange, handleChapterChange, handleToggleView, handleNodeSelect,
-        handleNodeHoverStart, handleNodeHoverEnd
+        // Selection State
+        selectedBook,
+        selectedChapter,
+        viewMode,
+        chapterList,
+        // Derived Data State
+        filteredConnectionData,
+        isFiltering,
+        // Interaction State
+        selectedNodeId,
+        hoveredNodeId,
+        // Handlers
+        handleBookChange,
+        handleChapterChange,
+        handleToggleView,
+        handleNodeSelect,
+        handleNodeHoverStart,
+        handleNodeHoverEnd
     };
 }
