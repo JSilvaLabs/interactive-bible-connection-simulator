@@ -1,26 +1,62 @@
-@import "tailwindcss";
+/* These lines are essential for Tailwind to work */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* Default color variables set up by create-next-app with Tailwind */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
+/* Default body styling using the variables */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom styles added for the D3 Chord Diagram */
+.chord-diagram .arc path {
+  stroke: #333;
+  stroke-width: 0.5px;
+}
+
+.chord-diagram .ribbon path {
+  fill-opacity: 0.7;
+  stroke: #fff;
+  stroke-width: 0.5px;
+}
+
+.chord-diagram .arc-label {
+  font-size: 10px; /* Adjust as needed */
+  fill: #333;
+  pointer-events: none; /* Labels shouldn't block hover on arcs */
+  text-anchor: middle;
+}
+
+/* Dark mode adjustments for the custom chord diagram styles */
+@media (prefers-color-scheme: dark) {
+  .chord-diagram .arc path {
+    stroke: #ccc;
+  }
+  .chord-diagram .ribbon path {
+    stroke: #333;
+  }
+   .chord-diagram .arc-label {
+     fill: #ccc;
+   }
 }
