@@ -1,12 +1,12 @@
 "use client";
 
 import React from 'react';
-import ArcDiagram from './ArcDiagram'; // Import the ArcDiagram component
+import ArcDiagram from './ArcDiagram';
 
 /**
  * Wrapper component for the ArcDiagram.
  * Sets up the SVG container with adaptive margins suitable for vertical layout
- * and handles loading/placeholder states.
+ * and handles loading/placeholder states. (MVP v6.1: Increased left margin)
  */
 function ArcDiagramContainer({
     data,                 // { nodes: [canonically sorted], links: [] }
@@ -18,15 +18,16 @@ function ArcDiagramContainer({
     isLoading             // Boolean indicating data is being filtered/loaded
 }) {
 
-    // --- MVP v5.1: Adaptive Margins ---
-    const isSmallScreenWidth = width < 500; // Example threshold for reducing left margin
+    // --- MVP v6.1: Adjusted Margins ---
+    // Increase left margin substantially for labels next to vertical axis.
+    // Adjust right/top/bottom for visual balance and arc clearance.
     const margin = {
         top: 30,
-        right: isSmallScreenWidth ? 10 : 30,   // Slightly less right margin on small screens
-        bottom: isSmallScreenWidth ? 40 : 60, // Less bottom margin if labels are smaller/hidden
-        left: isSmallScreenWidth ? 40 : 120 // Significantly less left margin on small screens
+        right: 40,  // Provide some space for arcs extending right
+        bottom: 40, // Space below axis
+        left: 200   // <<< INCREASED significantly for labels
     };
-    // --- End Adaptive Margins ---
+    // --- End Margin Adjustment ---
 
     // Calculate inner dimensions, ensuring they are not negative
     const innerWidth = Math.max(1, width - margin.left - margin.right);
@@ -34,7 +35,8 @@ function ArcDiagramContainer({
 
     let content;
 
-    if (innerWidth <= 10 || innerHeight <= 50) { // Check if inner dimensions are too small
+    // Check if inner dimensions are valid *after* applying margins
+    if (innerWidth <= 20 || innerHeight <= 50) {
          content = (
             <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">
                 Container too small.
@@ -49,7 +51,7 @@ function ArcDiagramContainer({
     } else if (!data || !data.nodes || data.nodes.length === 0) {
         content = (
             <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">
-                { !data ? "Select Book/Chapter above." : "No connections found for this selection." }
+                { !data ? "Select Book/Chapter." : "No connections found." }
             </text>
         );
     } else {
@@ -58,7 +60,7 @@ function ArcDiagramContainer({
             <g transform={`translate(${margin.left},${margin.top})`}>
                 <ArcDiagram
                     data={data}
-                    width={innerWidth}
+                    width={innerWidth} // Pass inner dimensions
                     height={innerHeight}
                     onNodeSelect={onNodeSelect}
                     onNodeHoverStart={onNodeHoverStart}
@@ -70,8 +72,6 @@ function ArcDiagramContainer({
 
     return (
         <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900" aria-label="Arc Diagram Visualization">
-             {/* Optional: Debug rectangle for inner dimensions */}
-             {/* <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="none" stroke="red" strokeDasharray="2,2" /> */}
             {content}
         </svg>
     );
