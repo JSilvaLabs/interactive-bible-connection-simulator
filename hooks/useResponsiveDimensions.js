@@ -20,14 +20,15 @@ export function useResponsiveDimensions(
             const handleResize = () => {
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
-                const isLargeScreen = windowWidth >= 1024; // lg breakpoint
+                const isLargeScreen = windowWidth >= 1024; // lg breakpoint (Tailwind default)
 
-                // Attempt to get heights of surrounding elements for more accurate calculation
+                // Attempt to get actual heights of surrounding elements for more accuracy
+                // Fallback to estimates if elements aren't found immediately
                 const headerElement = document.getElementById('main-header');
                 const footerElement = document.getElementById('main-footer');
                 const controlsElement = document.getElementById('controls-area');
 
-                // Use estimated heights as fallbacks if elements aren't found immediately
+                // Use estimated heights as fallbacks
                 const headerHeight = headerElement?.offsetHeight || 60;
                 const footerHeight = footerElement?.offsetHeight || 20;
                 const controlsHeight = controlsElement?.offsetHeight || 50;
@@ -41,20 +42,27 @@ export function useResponsiveDimensions(
                 let vizWidth, vizHeight;
 
                 if (isLargeScreen) {
-                    // Side-by-side layout
-                    const infoPanelWidth = 340; // Fixed width for info column
+                    // --- Side-by-side layout (Large Screens) ---
+                    // Estimate fixed width of info panels column
+                    const infoPanelWidth = 340; // Width defined in MainPage layout
+                    // Calculate width available for visualization container
                     const availableVizWidth = windowWidth - infoPanelWidth - gap - horizontalPadding;
+                    // Use calculated available width, ensuring minimum
                     vizWidth = Math.max(300, availableVizWidth);
+                    // Use calculated available height, ensuring minimum
                     vizHeight = Math.max(300, availableHeight);
                 } else {
-                    // Stacked layout (mobile)
+                    // --- Stacked layout (Small Screens) ---
+                    // Visualization takes full available width
                     const availableVizWidth = windowWidth - horizontalPadding;
-                    const minPanelStackHeight = 300; // Min height for panels below
-                    vizHeight = Math.max(250, availableHeight - minPanelStackHeight - gap); // Min height for viz
                     vizWidth = Math.max(300, availableVizWidth);
+                    // Estimate minimum height needed for info panels below
+                    const minPanelStackHeight = 300; // Adjust as needed
+                    // Allocate remaining available height to visualization, ensuring minimum
+                    vizHeight = Math.max(250, availableHeight - minPanelStackHeight - gap); // Min height for viz
                 }
 
-                // Clamp dimensions to reasonable max values
+                // Optional: Clamp dimensions to reasonable maximums
                 vizWidth = Math.min(vizWidth, 2000);
                 vizHeight = Math.min(vizHeight, 1500);
 
@@ -63,6 +71,7 @@ export function useResponsiveDimensions(
                     if (prevDims.width === vizWidth && prevDims.height === vizHeight) {
                         return prevDims;
                     }
+                    // console.log("Resized dimensions:", { width: vizWidth, height: vizHeight }); // Debugging resize
                     return { width: vizWidth, height: vizHeight };
                 });
             };
@@ -74,7 +83,7 @@ export function useResponsiveDimensions(
             let resizeTimer;
             const debouncedHandler = () => {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(handleResize, 150);
+                resizeTimer = setTimeout(handleResize, 150); // Delay recalculation slightly
             };
 
             // Add event listener
