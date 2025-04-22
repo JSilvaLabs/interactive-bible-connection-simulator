@@ -1,140 +1,95 @@
-// tests/utils/dataService.test.js (MVP v6.1 Update - Testing Normalization/Sorting)
+// utils/dataService.js (Clean MVP v6.0 Version - NO JEST CODE)
 
-import {
-    parseReferenceId,
-    normalizeBookNameForText,
-    normalizeBookNameForId,
-    getNodeMetadata,
-    getConnectionsFor,
-    getBooks,
-    getChapters,
-    // loadBibleText, // Usually avoid direct load in unit tests, use mocks
-    // loadAllReferences,
-} from '@/utils/dataService';
+import bibleDataRaw from '@/data/BSB.json';
+import allReferencesRaw from '@/data/references.json';
+import { BIBLE_BOOK_ORDER_MAP, getBookSortIndex } from './canonicalOrder';
 
-// Mock canonical order - Ensure it includes the books being tested
-jest.mock('@/utils/canonicalOrder', () => ({
-    BIBLE_BOOK_ORDER: [
-        "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth",
-        "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", // Numbered books
-        "Ezra", "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon", // Multi-word
-        "Isaiah", /*...*/ "Matthew", /*...*/ "John", /*...*/ "Acts", /*...*/ "Hebrews", /*...*/ "1 John", /*...*/ "Revelation of John"
-    ],
-    BIBLE_BOOK_ORDER_MAP: new Map([
-        ["Genesis", 0], ["Exodus", 1], ["Leviticus", 2], /*...*/ ["Ruth", 7],
-        ["1 Samuel", 8], ["2 Samuel", 9], ["1 Kings", 10], ["2 Kings", 11], ["1 Chronicles", 12], ["2 Chronicles", 13], /*...*/
-        ["Psalms", 18], ["Proverbs", 19], ["Ecclesiastes", 20], ["Song of Solomon", 21], /*...*/
-        ["Matthew", 40], ["John", 43], ["Acts", 44], ["Hebrews", 58], ["1 John", 62], ["Revelation of John", 65]
-        // Add mappings for all books in the mock order
-    ]),
-    getBookSortIndex: jest.fn((bookName) => {
-        // Simplified mock lookup based on the map above
-        const map = new Map([["Genesis", 0], ["Exodus", 1], ["1 Samuel", 8], ["2 Samuel", 9], ["Song of Solomon", 21], ["Matthew", 40], ["John", 43], ["Acts", 44], ["Hebrews", 58], ["1 John", 62], ["Revelation of John", 65]]);
-        return map.get(bookName) ?? 999;
-    }),
-}));
+// --- Module-level Caches ---
+let bibleDataCache = null;
+let referencesCache = null;
+let bibleLookupMap = null;
+let referencesLookupMap = null;
 
-// --- Mock Data ---
-const mockBibleData = {
-    "translation": "Mock BSB",
-    "books": [
-        // Ensure this includes names exactly as expected after text normalization
-        { "name": "Genesis", "chapters": [/*...*/] },
-        { "name": "Exodus", "chapters": [/*...*/] },
-        { "name": "1 Samuel", "chapters": [/*...*/] }, // Canonical name with space
-        { "name": "2 Samuel", "chapters": [/*...*/] },
-        { "name": "Song of Solomon", "chapters": [/*...*/] },
-        { "name": "Matthew", "chapters": [/*...*/] },
-        { "name": "John", "chapters": [/*...*/] },
-        { "name": "Acts", "chapters": [/*...*/] },
-        { "name": "Hebrews", "chapters": [/*...*/] },
-        { "name": "1 John", "chapters": [/*...*/] }, // Canonical name with space
-        { "name": "Revelation of John", "chapters": [/*...*/] }, // Canonical name
-    ]
+// --- Parsing and Normalization Functions ---
+
+// EXPORTED - Needed by ReferenceListPanel
+export const parseReferenceId = (referenceId) => {
+    if (!referenceId) return null; const cleanedId = referenceId.trim();
+    const dotRegex = /^([1-3]?[\s\w\.]+)\.(\d+)\.(\d+)$/i; const dotMatch = cleanedId.match(dotRegex);
+    if (dotMatch) { return { book: dotMatch[1].trim(), chapter: parseInt(dotMatch[2], 10), verse: parseInt(dotMatch[3], 10) }; }
+    const concatRegex = /^([1-3]?[A-Za-z]+)(\d+)(?:[v:](\d+))?$/i; const concatMatch = cleanedId.replace(/\s/g, '').match(concatRegex);
+    if (concatMatch) { return { book: concatMatch[1], chapter: parseInt(concatMatch[2], 10), verse: concatMatch[3] ? parseInt(concatMatch[3], 10) : null }; }
+    return null;
 };
-const mockAllLinks = [
-    { source: "Genesis1v1", target: "John1v1", value: 1 },
-    { source: "1Samuel2v1", target: "Luke1v52", value: 1 }, // Assumes ID uses "1Samuel"
-    { source: "SongofSolomon2v1", target: "John1v1", value: 1 }, // Assumes ID uses "SongofSolomon"
-    { source: "Genesis1v3", target: "1Samuel3v3", value: 1 },
-];
+
+// Internal helper
+const normalizeBookNameForText = (inputName) => {
+    if (!inputName) return ''; const cleanedName = inputName.trim(); const lowerCaseCleaned = cleanedName.toLowerCase();
+    const map = { /* ... comprehensive map ... */ 'gen': 'Genesis', 'rev': 'Revelation of John'};
+    for (const key in map) { if (lowerCaseCleaned === key || lowerCaseCleaned === key.replace(/(\d)/, '$1 ')) return map[key]; }
+    return cleanedName.replace(/\b\w/g, l => l.toUpperCase());
+};
+
+// EXPORTED - Needed by ReferenceListPanel
+export const normalizeBookNameForId = (inputName) => {
+     if (!inputName) return 'Unknown'; const cleanedName = inputName.replace(/\s/g, '').toLowerCase();
+     const map = { /* ... comprehensive map ... */ 'genesis': 'Genesis', 'revelation':'Revelation of John'};
+     const normalized = map[cleanedName];
+     return normalized || normalizeBookNameForText(inputName) || inputName;
+};
+
+// EXPORTED
+export const getNodeMetadata = (nodeId) => {
+     if (!nodeId) return null; const parsed = parseReferenceId(nodeId);
+     if (!parsed) return { rawId: nodeId };
+     return { book: normalizeBookNameForText(parsed.book), chapter: parsed.chapter, verse: parsed.verse };
+};
 
 
-// --- Test Suite ---
-describe('dataService Utilities (MVP v6.1 Refinements)', () => {
+// --- Loading Functions with Pre-processing ---
+export const loadBibleText = () => {
+    if (bibleDataCache) return bibleDataCache;
+    console.time("Load/Preprocess Bible Text"); try { bibleDataCache = bibleDataRaw; if (!bibleLookupMap) { bibleLookupMap = new Map(); bibleDataCache.books.forEach(book => { const chapterMap = new Map(); const canonicalBookName = normalizeBookNameForText(book.name); book.chapters.forEach(chap => { const verseMap = new Map(); chap.verses.forEach(v => { verseMap.set(v.verse, v.text); }); chapterMap.set(chap.chapter, verseMap); }); bibleLookupMap.set(canonicalBookName, chapterMap); }); console.log("Bible lookup map created."); } console.timeEnd("Load/Preprocess Bible Text"); return bibleDataCache; } catch (error) { console.error("Error loading/processing Bible data:", error); throw new Error("Failed to load Bible data."); }
+};
 
-    describe('parseReferenceId', () => {
-        // (Keep existing tests)
-         test('should parse numbered books correctly', () => {
-             expect(parseReferenceId('1Samuel2v10')).toEqual({ book: '1Samuel', chapter: 2, verse: 10 });
-             expect(parseReferenceId('2Kings5')).toEqual({ book: '2Kings', chapter: 5, verse: null });
-             expect(parseReferenceId('1 Chr.10.1')).toEqual({ book: '1 Chr', chapter: 10, verse: 1 }); // Test dot variant if used
-         });
-    });
+export const loadAllReferences = () => {
+    if (referencesCache) return referencesCache; console.time("Load/Preprocess References"); try { if (!Array.isArray(allReferencesRaw)) throw new Error("references.json not valid array."); referencesCache = allReferencesRaw; if (!referencesLookupMap) { referencesLookupMap = new Map(); referencesCache.forEach(link => { if (!link || !link.source) return; const parsedSource = parseReferenceId(link.source); if(parsedSource && parsedSource.verse !== null) { const prefix = `${normalizeBookNameForId(parsedSource.book)}${parsedSource.chapter}v`; if (!referencesLookupMap.has(prefix)) { referencesLookupMap.set(prefix, []); } referencesLookupMap.get(prefix).push(link); } }); console.log(`References lookup map created with ${referencesLookupMap.size} prefixes.`); } console.timeEnd("Load/Preprocess References"); return referencesCache; } catch (error) { console.error("Error loading/processing references data:", error); throw new Error("Failed to load references data."); }
+};
 
-    describe('Normalization Functions', () => {
-        test('normalizeBookNameForText handles numbered/multi-word books', () => {
-            expect(normalizeBookNameForText('1sam')).toBe('1 Samuel');
-            expect(normalizeBookNameForText('1 samuel')).toBe('1 Samuel');
-            expect(normalizeBookNameForText('song')).toBe('Song of Solomon');
-            expect(normalizeBookNameForText('Song of Solomon')).toBe('Song of Solomon');
-            expect(normalizeBookNameForText('rev')).toBe('Revelation of John');
-        });
-         test('normalizeBookNameForId handles numbered/multi-word books from ID format', () => {
-            // Assumes IDs use concatenated format like '1samuel', 'songofsolomon'
-            expect(normalizeBookNameForId('1samuel')).toBe('1 Samuel'); // -> Canonical with space
-            expect(normalizeBookNameForId('songofsolomon')).toBe('Song of Solomon');
-            expect(normalizeBookNameForId('revelation')).toBe('Revelation of John'); // -> Canonical full name
-        });
-    });
+// --- Metadata Functions ---
+export const getBooks = (bibleData) => {
+    if (!bibleData || !bibleData.books) return []; const bookNames = bibleData.books.map(b => b.name);
+    return bookNames.sort((a, b) => getBookSortIndex(normalizeBookNameForText(a)) - getBookSortIndex(normalizeBookNameForText(b)));
+};
+export const getChapters = (bibleData, bookName) => {
+    if (!bibleData || !bookName || !bibleData.books) return []; const normalizedBook = normalizeBookNameForText(bookName);
+    const book = bibleData.books.find(b => normalizeBookNameForText(b.name) === normalizedBook);
+    return book ? book.chapters.map(c => c.chapter).sort((a, b) => a - b) : [];
+};
 
-    describe('getNodeMetadata', () => {
-        // (Keep existing tests)
-        test('should return correct metadata for numbered/multi-word books', () => {
-             expect(getNodeMetadata('1Sam16v7')).toEqual({ book: '1 Samuel', chapter: 16, verse: 7 });
-             expect(getNodeMetadata('SongofSolomon8')).toEqual({ book: 'Song of Solomon', chapter: 8, verse: null });
-        });
-    });
+// --- Optimized Text Retrieval ---
+export const getTextForReference = (bibleData, referenceId) => {
+    if (!bibleLookupMap) { loadBibleText(); } if (!bibleLookupMap) return "Bible data not available/processed."; if (!referenceId) return "Select node...";
+    const parsedRef = parseReferenceId(referenceId); if (!parsedRef) return `Invalid ID: ${referenceId}`;
+    const normalizedBookName = normalizeBookNameForText(parsedRef.book);
+    try { const chapterMap = bibleLookupMap.get(normalizedBookName); if (!chapterMap) return `Book not found [Map]: ${normalizedBookName}`; const verseMap = chapterMap.get(parsedRef.chapter); if (!verseMap) return `Chapter not found [Map]: ${normalizedBookName} ${parsedRef.chapter}`;
+        if (parsedRef.verse !== null) { const text = verseMap.get(parsedRef.verse); return text ? `${normalizedBookName} ${parsedRef.chapter}:${parsedRef.verse}\n${text.trim()}` : `Verse not found [Map]: ${referenceId}`; } else { const chapterHeader = `${normalizedBookName} ${parsedRef.chapter}\n--------------------\n`; const versesText = Array.from(verseMap.entries()).sort(([vA], [vB]) => vA - vB).map(([vNum, vText]) => `${vNum} ${vText.trim()}`).join('\n\n'); return chapterHeader + versesText; }
+    } catch(error) { console.error(`Error in getTextForReference for ${referenceId}:`, error); return `Error looking up text.`; }
+};
 
-    describe('getBooks', () => {
-         test('should return canonically sorted list including numbered/multi-word books', () => {
-             const books = getBooks(mockBibleData);
-             // Check order based on the mocked canonical order
-             expect(books).toEqual([
-                 "Genesis", "Exodus", "1 Samuel", "2 Samuel", "Song of Solomon", "Matthew", "John", "Acts", "Hebrews", "1 John", "Revelation of John"
-             ]);
-         });
-    });
 
-    describe('getConnectionsFor', () => {
-        test('should filter correctly for numbered books (e.g., 1 Samuel 2)', () => {
-            const result = getConnectionsFor(mockAllLinks, '1 Samuel', 2, 'verse'); // Use canonical name for selection
-            expect(result).not.toBeNull();
-            // Check if the link originating from "1Samuel2v..." was found
-            expect(result.links).toHaveLength(1);
-            expect(result.links[0].source).toBe('1Samuel2v1');
-            // Check nodes derived include 1 Samuel and Luke (based on mock link)
-            const nodeIds = result.nodes.map(n => n.id);
-            expect(nodeIds).toEqual(expect.arrayContaining(['1Samuel2v1', 'Luke1v52']));
-             // Check sorting of nodes derived
-             expect(result.nodes[0].book).toBe('1 Samuel'); // Should come before Luke
-             expect(result.nodes[1].book).toBe('Luke');
-        });
-
-        test('should derive nodes with correct canonical book name for sorting', () => {
-             const result = getConnectionsFor(mockAllLinks, 'Song of Solomon', 2, 'verse');
-             expect(result).not.toBeNull();
-             expect(result.links).toHaveLength(1);
-             // Check node derived from 'SongofSolomon2v1' has book: 'Song of Solomon'
-             const sourceNode = result.nodes.find(n => n.id === 'SongofSolomon2v1');
-             expect(sourceNode?.book).toBe('Song of Solomon');
-             // Check node derived from 'John1v1' has book: 'John'
-             const targetNode = result.nodes.find(n => n.id === 'John1v1');
-             expect(targetNode?.book).toBe('John');
-             // Check overall sort order (John should come after Song of Solomon)
-             expect(result.nodes[0].book).toBe('Song of Solomon');
-             expect(result.nodes[1].book).toBe('John');
-        });
-    });
-
-});
+// --- Optimized Connection Filtering ---
+export const getConnectionsFor = (allLinks, selectedBook, selectedChapter, viewMode) => {
+     if (!referencesLookupMap) { loadAllReferences(); } if (!referencesLookupMap) return { nodes: [], links: [] };
+     if (!selectedBook || !selectedChapter) return null;
+    const normalizedBookForFiltering = normalizeBookNameForId(selectedBook);
+    const sourcePrefix = `${normalizedBookForFiltering}${selectedChapter}v`;
+    const originLinks = referencesLookupMap.get(sourcePrefix) || [];
+    if (originLinks.length === 0) return { nodes: [], links: [] };
+    let finalNodes = []; let finalLinks = []; const nodeMap = new Map();
+    const ensureNode = (id) => { /* ... ensureNode helper logic ... */ if (!id || nodeMap.has(id)) return; const parsed = parseReferenceId(id); if (!parsed) { nodeMap.set(id, { id: id, label: id, book: 'Unknown' }); return; } const bookNameKey = normalizeBookNameForId(parsed.book); const bookNameLabel = normalizeBookNameForText(parsed.book); let label = parsed.verse !== null ? `${bookNameLabel} ${parsed.chapter}:${parsed.verse}` : `${bookNameLabel} ${parsed.chapter}`; nodeMap.set(id, { id: id, label: label, book: bookNameKey }); };
+     if (viewMode === 'chapter') { /* ... Aggregate originLinks ... */ const chapterLinksAggregated = new Map(); const sourceChapterId = `${normalizedBookForFiltering}${selectedChapter}`; ensureNode(sourceChapterId); originLinks.forEach(link => { const targetParsed = parseReferenceId(link.target); if (targetParsed) { const targetBookNormalized = normalizeBookNameForId(targetParsed.book); const targetChapterId = `${targetBookNormalized}${targetParsed.chapter}`; ensureNode(targetChapterId); const key = `${sourceChapterId}->${targetChapterId}`; if (!chapterLinksAggregated.has(key)) chapterLinksAggregated.set(key, { source: sourceChapterId, target: targetChapterId, value: 0 }); chapterLinksAggregated.get(key).value += 1; } }); finalLinks = Array.from(chapterLinksAggregated.values()); } else { /* Verse view */ finalLinks = originLinks.map(link => ({ ...link, value: 1 })); finalLinks.forEach(link => { ensureNode(link.source); ensureNode(link.target); }); }
+    finalNodes = Array.from(nodeMap.values());
+    finalNodes.sort((a, b) => { /* ... canonical sort logic ... */ const indexA = getBookSortIndex(a.book); const indexB = getBookSortIndex(b.book); if (indexA !== indexB) return indexA - indexB; const parsedA = parseReferenceId(a.id); const parsedB = parseReferenceId(b.id); if (parsedA && parsedB) { if (parsedA.chapter !== parsedB.chapter) return parsedA.chapter - parsedB.chapter; const verseA = parsedA.verse === null ? 0 : parsedA.verse; const verseB = parsedB.verse === null ? 0 : parsedB.verse; if (verseA !== verseB) return verseA - verseB; } return a.id.localeCompare(b.id); });
+    return { nodes: finalNodes, links: finalLinks };
+};
