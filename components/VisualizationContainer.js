@@ -3,13 +3,21 @@
 import React from 'react';
 import ChordDiagram from './ChordDiagram';
 
-function VisualizationContainer({ data, width, height, onNodeSelect, isLoading }) { // Added isLoading prop
+function VisualizationContainer({
+    data,
+    width,
+    height,
+    onNodeSelect,
+    onNodeHoverStart, // New prop
+    onNodeHoverEnd,   // New prop
+    isLoading         // Prop indicating filtering/loading is happening
+ }) {
 
   let content;
 
   if (isLoading) {
-    // Displaying a loading indicator while filtering is in progress
-    content = <div className="text-gray-500 dark:text-gray-400 animate-pulse">Loading Connections...</div>;
+    // Display a loading indicator while filtering or initial selection is pending
+    content = <div className="text-gray-500 dark:text-gray-400 animate-pulse p-4 text-center">Loading Connections...</div>;
   } else if (data && data.nodes && data.nodes.length > 0 && data.links && width > 0 && height > 0) {
     // If not loading and data is valid (has nodes), render the diagram
     content = (
@@ -18,15 +26,16 @@ function VisualizationContainer({ data, width, height, onNodeSelect, isLoading }
          width={width}
          height={height}
          onNodeSelect={onNodeSelect}
+         onNodeHoverStart={onNodeHoverStart} // Pass down hover handlers
+         onNodeHoverEnd={onNodeHoverEnd}
       />
     );
   } else if (data && data.nodes && data.nodes.length === 0) {
       // If not loading, data is present but filtering resulted in no connections
-      content = <div className="text-gray-500 dark:text-gray-400 p-4 text-center">No connections found for this selection.</div>;
-  }
-   else {
+      content = <div className="text-gray-500 dark:text-gray-400 p-4 text-center">No connections found for this selection in the current view (Chapter/Verse).</div>;
+  } else {
     // Default placeholder if no selection made yet or data is null
-    content = <div className="text-gray-500 dark:text-gray-400 p-4 text-center">Please select a Book and Chapter to view connections.</div>;
+    content = <div className="text-gray-500 dark:text-gray-400 p-4 text-center">Please select a Book and Chapter above to view connections.</div>;
   }
 
   return (

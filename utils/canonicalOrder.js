@@ -2,14 +2,14 @@
 
 // Standard 66-book Protestant canonical order
 // IMPORTANT: Ensure these names EXACTLY match the normalized names
-// you intend to use as keys or identifiers derived from your bibleData and referencesData.
+// used as keys or identifiers derived from your bibleData and referencesData.
 // Adjust capitalization/spacing/abbreviations as necessary based on your dataService normalization.
 export const BIBLE_BOOK_ORDER = [
     "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
     "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel",
     "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra",
     "Nehemiah", "Esther", "Job", "Psalms", "Proverbs",
-    "Ecclesiastes", "Song of Solomon", // Or "Song" if that's your normalized standard
+    "Ecclesiastes", "Song of Solomon", // Consider if normalization maps this to "Song"
     "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel",
     "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah",
     "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
@@ -35,5 +35,15 @@ export const BIBLE_BOOK_ORDER_MAP = new Map(
  * @returns {number} The 0-based canonical index or 999 if not found.
  */
 export const getBookSortIndex = (bookName) => {
-    return BIBLE_BOOK_ORDER_MAP.get(bookName) ?? 999; // Use Map for fast lookup
+    // Attempt direct lookup first
+    let index = BIBLE_BOOK_ORDER_MAP.get(bookName);
+    if (index !== undefined) return index;
+
+    // Fallback for common variations if direct match failed (optional, depends on normalization quality)
+    // Example: Handle "Psalms" vs "Psalm" - depends on your canonical list/normalization
+    // if (bookName === "Psalm") index = BIBLE_BOOK_ORDER_MAP.get("Psalms");
+    // if (index !== undefined) return index;
+
+    // console.warn(`Canonical index not found for book: ${bookName}`); // Optional warning
+    return 999; // Sort unknown books last
 }

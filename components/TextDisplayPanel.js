@@ -1,64 +1,84 @@
 "use client";
 
-import React from 'react';
-// Assuming dataService provides the text retrieval function
-import { getTextForReference } from '@/utils/dataService';
+import React, { useState, useEffect } from 'react';
+import { getTextForReference } from '@/utils/dataService'; // Import the utility
 
-function TextDisplayPanel({ selectedNodeId, bibleData, isLoadingBibleData }) { // Added isLoadingBibleData prop
-  let displayText = "";
-  let displayTitle = "Selected Text";
-  let isLoading = false;
+function TextDisplayPanel({
+    selectedNodeId,    // Node ID from click event
+    hoveredNodeId,     // Node ID from hover event
+    bibleData,         // The loaded Bible data object
+    isLoadingBibleData // Boolean for initial Bible data load
+}) {
+  const [displayText, setDisplayText] = useState("Loading...");
+  const [displayTitle, setDisplayTitle] = useState("Bible Text");
+  const [isLoadingText, setIsLoadingText] = useState(false); // Local loading state for text lookup
 
-  if (isLoadingBibleData) {
-    // If the underlying Bible data is still loading
-    displayText = "Loading Bible data...";
-    displayTitle = "Loading...";
-    isLoading = true;
-  } else if (selectedNodeId && bibleData) {
-    // If Bible data is loaded and a node is selected, attempt to get text
-    try {
-        displayText = getTextForReference(bibleData, selectedNodeId);
-        displayTitle = `Selected: ${selectedNodeId}`;
-         if(displayText.startsWith('Book not found') || displayText.startsWith('Chapter not found') || displayText.startsWith('Verse not found')) {
-            console.warn(`Text lookup warning: ${displayText}`);
-            // Keep the warning message as displayText
-        }
-    } catch (error) {
-        console.error(`Error getting text for ${selectedNodeId}:`, error);
-        displayText = `Error retrieving text for ${selectedNodeId}.`;
-        displayTitle = `Error`;
+  useEffect(() => {
+    let isMounted = true; // Prevent state update on unmounted component
+    const idToFetch = selectedNodeId || hoveredNodeId; // Prioritize selected, fallback to hovered
+    const isHover = !selectedNodeId && hoveredNodeId; // Flag if we're showing hover info
+
+    if (isLoadingBibleData) {
+        setDisplayTitle("Loading...");
+        setDisplayText("Loading Bible data...");
+        return; // Wait for Bible data to load
     }
-  } else if (bibleData) {
-     // If Bible data is loaded but nothing is selected
-     displayText = "Select a Book/Chapter above, then click a node (chapter/verse) on the diagram to view its text or connections.";
-     displayTitle = "Instructions";
-  }
-   else {
-     // Fallback if bibleData somehow isn't loaded (should be covered by isLoadingBibleData)
-      displayText = "Bible data unavailable.";
-      displayTitle = "Error";
-   }
+
+    if (idToFetch && bibleData) {
+        setIsLoadingText(true); // Indicate text lookup potentially starting
+        setDisplayTitle(isHover ? `Hover: ${idToFetch}` : `Selected: ${idToFetch}`);
+
+        // Simulate async lookup or allow UI to update before potential slow lookup
+        requestAnimationFrame(() => {
+            if (!isMounted) return;
+            try {
+                const text = getTextForReference(bibleData, idToFetch);
+                setDisplayText(text || `Text not found for ${idToFetch}.`); // Handle case where lookup returns nothing
+            } catch (error) {
+                console.error(`Error getting text for ${idToFetch}:`, error);
+                setDisplayText(`Error retrieving text for ${idToFetch}.`);
+            } finally {
+                setIsLoadingText(false);
+            }
+        });
+
+    } else if (bibleData) {
+        // Bible data loaded, but no node selected or hovered
+        setDisplayTitle("Instructions");
+        setDisplayText("Select Book/Chapter, then hover over or click a node on the diagram to view text.");
+        setIsLoadingText(false);
+    } else {
+         // Bible data itself failed to load (handled by isLoadingBibleData generally)
+         setDisplayTitle("Error");
+         setDisplayText("Bible data is unavailable.");
+         setIsLoadingText(false);
+    }
+
+     return () => { isMounted = false }; // Cleanup on unmount
+
+  }, [selectedNodeId, hoveredNodeId, bibleData, isLoadingBibleData]); // Dependencies
 
 
   return (
-    // Added fixed height and scrolling to the outer container
     <div className="p-4 border border-gray-300 dark:border-gray-700 rounded-lg h-full overflow-hidden flex flex-col bg-gray-100 dark:bg-gray-800 shadow-inner">
-      <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-gray-100 dark:bg-gray-800 z-10 flex-shrink-0">
-        {displayTitle}
-      </h2>
-      {/* Make the content area scrollable */}
-      <div className="overflow-y-auto flex-grow">
-          {isLoading ? (
+        {/* Sticky Header */}
+        <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-gray-100 dark:bg-gray-800 z-10 flex-shrink-0">
+            {displayTitle}
+        </h2>
+        {/* Scrollable Content Area */}
+        <div className="overflow-y-auto flex-grow custom-scrollbar">
+            {isLoadingText || isLoadingBibleData ? (
+                // Show loading indicator specifically for text retrieval or initial load
                 <div className="flex justify-center items-center h-full text-gray-500 dark:text-gray-400 animate-pulse">
-                    {displayText}
+                    {isLoadingBibleData ? "Loading Bible data..." : "Loading text..."}
                 </div>
-          ) : (
-            <pre className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300 font-sans leading-relaxed p-1">
-                 {/* Render the retrieved text or instructions */}
-                 {displayText}
-            </pre>
-          )}
-      </div>
+            ) : (
+                // Use pre for formatting, whitespace-pre-wrap for wrapping long lines
+                <pre className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300 font-sans leading-relaxed p-1">
+                    {displayText}
+                </pre>
+            )}
+        </div>
     </div>
   );
 }
