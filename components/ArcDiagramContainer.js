@@ -1,54 +1,46 @@
+// components/ArcDiagramContainer.js (Add Logging)
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import ArcDiagram from './ArcDiagram';
 
-/**
- * Wrapper component for the ArcDiagram.
- * Sets up the SVG container with adaptive margins suitable for vertical layout
- * (potentially wider left margin for labels) and handles loading/placeholder states. (MVP v6.2: Margins potentially increased)
- */
-function ArcDiagramContainer({
-    data,                 // { nodes: [canonically sorted], links: [] }
-    width,                // Total width available for SVG
-    height,               // Total height available for SVG
-    onNodeSelect,
-    onNodeHoverStart,
-    onNodeHoverEnd,
-    isLoading             // Boolean indicating data is being filtered/loaded
-}) {
+function ArcDiagramContainer({ data, width, height, onNodeSelect, onNodeHoverStart, onNodeHoverEnd, isLoading }) {
+    const svgRef = useRef();
 
-    // --- MVP v6.2: Further Adjusted Margins ---
-    // Increase left margin more if needed to accommodate larger nodes/labels from ArcDiagram.js
-    // Also ensure enough right margin for potentially wider arcs if diagram is narrow.
-    const isSmallScreenWidth = width < 500; // Example threshold
-    const margin = {
-        top: 30,
-        right: isSmallScreenWidth ? 20 : 50,   // More space on right for arcs
-        bottom: 40,
-        left: isSmallScreenWidth ? 80 : 250  // <<< Further Increased left margin example
-    };
-    // --- End Margin Adjustment ---
+    // Log input props
+    // console.log(`[Container] Received Props: width=${width}, height=${height}, isLoading=${isLoading}, data nodes=${data?.nodes?.length}`);
 
-    // Calculate inner dimensions, ensuring non-negative
+    const margin = { top: 30, right: 40, bottom: 40, left: 250 }; // Use wide left margin from v6.2
     const innerWidth = Math.max(1, width - margin.left - margin.right);
     const innerHeight = Math.max(1, height - margin.top - margin.bottom);
 
-    let content;
+    // Log calculated dimensions
+    // console.log(`[Container] Calculated Dims: innerW=${innerWidth}, innerH=${innerHeight}`);
 
-    if (innerWidth <= 10 || innerHeight <= 50) { // Check inner dimensions
-         content = ( <text x={width / 2} y={height / 2} /* ... */ >Container too small.</text> );
+    let content;
+    let renderArcDiagram = false; // Flag to check if ArcDiagram should be rendered
+
+    if (width <= 0 || height <= 0) {
+        content = <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fill="red">Container has zero dimensions.</text>;
+        console.warn("[Container] Render blocked: Zero dimensions received.", { width, height });
+    } else if (innerWidth <= 10 || innerHeight <= 50) {
+         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">Container too small after margins.</text> );
+         console.warn("[Container] Render blocked: Inner dimensions too small.", { innerWidth, innerHeight });
     } else if (isLoading) {
-        content = ( <text x={width / 2} y={height / 2} /* ... */ >Loading Connections...</text> );
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading Connections...</text> );
+        // console.log("[Container] Rendering: Loading State");
     } else if (!data || !data.nodes || data.nodes.length === 0) {
-        content = ( <text x={width / 2} y={height / 2} /* ... */ >{ !data ? "Select Book/Chapter." : "No connections found." }</text> );
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">{ !data ? "Select Book/Chapter." : "No connections found." }</text> );
+        // console.log("[Container] Rendering: No Data State");
     } else {
-        // Render ArcDiagram within a translated group
+        // console.log("[Container] Rendering: ArcDiagram Component");
+        renderArcDiagram = true; // Set flag
         content = (
             <g transform={`translate(${margin.left},${margin.top})`}>
                 <ArcDiagram
+                    svgRef={svgRef} // Pass the SVG ref down
                     data={data}
-                    width={innerWidth} // Pass calculated inner dimensions
+                    width={innerWidth}
                     height={innerHeight}
                     onNodeSelect={onNodeSelect}
                     onNodeHoverStart={onNodeHoverStart}
@@ -58,10 +50,13 @@ function ArcDiagramContainer({
         );
     }
 
+    // Log final decision
+     // console.log(`[Container] Final Render Decision: ${renderArcDiagram ? 'Render ArcDiagram' : 'Render Placeholder/Error'}`);
+
     return (
-        <svg width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900" aria-label="Arc Diagram Visualization">
-            {/* Optional: Debug rectangle for inner drawing area */}
-            {/* <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="none" stroke="rgba(0,255,0,0.3)" strokeDasharray="2,2" /> */}
+        <svg ref={svgRef} width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900" aria-label="Arc Diagram Visualization">
+            {/* Debug rectangle showing inner drawing area */}
+            <rect x={margin.left} y={margin.top} width={innerWidth} height={innerHeight} fill="none" stroke="rgba(0,255,0,0.3)" strokeDasharray="2,2" />
             {content}
         </svg>
     );
