@@ -1,6 +1,7 @@
-// app/page.js (Refactored for MVP v6.0 - Uses Custom Hooks)
+// app/page.js (MVP v6.0 - Refactored using Hooks)
 "use client";
 
+import React from 'react'; // Import React for JSX
 // Import custom hooks
 import { useBibleData } from '@/hooks/useBibleData';
 import { useVisualizationState } from '@/hooks/useVisualizationState';
@@ -16,30 +17,34 @@ import MetadataPanel from '@/components/MetadataPanel';
 
 export default function MainPage() {
     // --- Consume Custom Hooks ---
-    // Hook for loading primary data
+    // Hooks MUST be called unconditionally at the top level of the component.
     const { bibleData, allReferencesData, bookList, isLoadingData, error: dataError } = useBibleData();
-
-    // Hook for managing selections, filtering, and interactions
-    // Pass loaded data as dependencies for filtering logic within the hook
+    const { dimensions } = useResponsiveDimensions(); // Hook for responsive sizing
     const {
-        selectedBook, selectedChapter, viewMode, chapterList, filteredConnectionData,
-        selectedNodeId, hoveredNodeId, isFiltering,
-        handleBookChange, handleChapterChange, handleToggleView, handleNodeSelect,
-        handleNodeHoverStart, handleNodeHoverEnd
-    } = useVisualizationState(bibleData, allReferencesData); // Pass data here
-
-    // Hook for responsive dimensions
-    const { dimensions } = useResponsiveDimensions();
+        selectedBook,
+        selectedChapter,
+        viewMode,
+        chapterList,
+        filteredConnectionData,
+        selectedNodeId,
+        hoveredNodeId,
+        isFiltering,
+        handleBookChange,
+        handleChapterChange,
+        handleToggleView,
+        handleNodeSelect,
+        handleNodeHoverStart,
+        handleNodeHoverEnd
+    } = useVisualizationState(bibleData, allReferencesData); // Pass loaded data to the state hook
 
     // --- Render Logic ---
 
-    // Handle loading state from the data hook
+    // Conditional rendering based on hook results is FINE here
     if (isLoadingData && !dataError) {
         return <div className="flex justify-center items-center min-h-screen">Loading Core Data...</div>;
     }
 
-    // Handle error state from the data hook
-    // TODO: Could add error state from useVisualizationState as well
+    // Display error if data loading failed
     if (dataError) {
         return <div className="flex justify-center items-center min-h-screen text-red-500 p-4 text-center">Error: {dataError}</div>;
     }
@@ -52,55 +57,70 @@ export default function MainPage() {
                  <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center">
                     Internal Bible Connection Simulator (MVP v6.0 - Refactored)
                 </h1>
+                {/* Controls Area */}
                 <div id="controls-area" className="flex flex-wrap gap-2 md:gap-4 mb-3 items-center justify-center">
-                    {/* Use state and handlers directly from the hook */}
                     <ReferenceSelector
-                        bookList={bookList}
-                        chapterList={chapterList}
-                        selectedBook={selectedBook}
-                        selectedChapter={selectedChapter}
-                        onBookChange={handleBookChange}
-                        onChapterChange={handleChapterChange}
-                        isDisabled={isLoadingData || isFiltering}
+                        bookList={bookList} // From useBibleData
+                        chapterList={chapterList} // From useVisualizationState
+                        selectedBook={selectedBook} // From useVisualizationState
+                        selectedChapter={selectedChapter} // From useVisualizationState
+                        onBookChange={handleBookChange} // From useVisualizationState
+                        onChapterChange={handleChapterChange} // From useVisualizationState
+                        isDisabled={isLoadingData || isFiltering} // Use loading states
                     />
                     <ViewToggle
-                        currentView={viewMode}
-                        onToggle={handleToggleView}
-                        disabled={!selectedChapter || isFiltering || isLoadingData}
+                        currentView={viewMode} // From useVisualizationState
+                        onToggle={handleToggleView} // From useVisualizationState
+                        disabled={!selectedChapter || isFiltering || isLoadingData} // Use state from hooks
                     />
                 </div>
             </div>
 
-            {/* Main Content Area - Layout driven by Tailwind classes */}
+            {/* Main Content Area - Responsive Layout */}
              <div className="flex flex-col lg:flex-row w-full max-w-screen-xl gap-3 flex-grow min-h-0 px-2 pb-1">
                 {/* Visualization Area */}
                 <div className="w-full lg:w-[calc(100%-340px)] h-[60%] lg:h-full border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1">
-                     {isFiltering && ( /* Filtering Loader - Uses state from hook */
+                     {/* Filtering Loader Overlay */}
+                     {isFiltering && (
                         <div className="absolute inset-0 bg-gray-600 bg-opacity-70 flex justify-center items-center z-20"><span className="text-white font-semibold text-lg animate-pulse">Loading...</span></div>
                      )}
+                     {/* Arc Diagram Container */}
                     <ArcDiagramContainer
-                        data={filteredConnectionData} // From hook
-                        isLoading={isFiltering || !selectedChapter} // From hook
-                        width={dimensions.width} // From hook
-                        height={dimensions.height} // From hook
-                        onNodeSelect={handleNodeSelect} // Handler from hook
-                        onNodeHoverStart={handleNodeHoverStart} // Handler from hook
-                        onNodeHoverEnd={handleNodeHoverEnd} // Handler from hook
+                        data={filteredConnectionData} // From useVisualizationState
+                        isLoading={isFiltering || !selectedChapter} // Derived loading state
+                        width={dimensions.width} // From useResponsiveDimensions
+                        height={dimensions.height} // From useResponsiveDimensions
+                        onNodeSelect={handleNodeSelect} // From useVisualizationState
+                        onNodeHoverStart={handleNodeHoverStart} // From useVisualizationState
+                        onNodeHoverEnd={handleNodeHoverEnd} // From useVisualizationState
                     />
                 </div>
 
-                {/* Info Panels Area */}
+                {/* Info Panels Area - Side Column */}
                 <div className="w-full lg:w-[340px] lg:max-w-[340px] flex-shrink-0 h-[40%] lg:h-full flex flex-col gap-3 lg:max-h-full overflow-hidden">
-                     <div className="flex-1 min-h-0">
-                        <MetadataPanel selectedNodeId={selectedNodeId} hoveredNodeId={hoveredNodeId} />
+                    {/* Metadata Panel */}
+                     <div className="flex-shrink-0">
+                        <MetadataPanel
+                            selectedNodeId={selectedNodeId} // From useVisualizationState
+                            hoveredNodeId={hoveredNodeId}   // From useVisualizationState
+                        />
                      </div>
+                     {/* Text Panel */}
                      <div className="flex-1 min-h-0">
-                         {/* Pass bibleData and loading state from useBibleData hook */}
-                        <TextDisplayPanel selectedNodeId={selectedNodeId} hoveredNodeId={hoveredNodeId} bibleData={bibleData} isLoadingBibleData={isLoadingData} />
+                        <TextDisplayPanel
+                            selectedNodeId={selectedNodeId} // From useVisualizationState
+                            hoveredNodeId={hoveredNodeId}   // From useVisualizationState
+                            bibleData={bibleData}           // From useBibleData
+                            isLoadingBibleData={isLoadingData} // From useBibleData
+                        />
                      </div>
+                      {/* Reference List Panel */}
                      <div className="flex-1 min-h-0">
-                         {/* Pass relevant state from useVisualizationState hook */}
-                        <ReferenceListPanel selectedNodeId={selectedNodeId} connectionData={filteredConnectionData} isLoadingConnections={isFiltering} />
+                        <ReferenceListPanel
+                             selectedNodeId={selectedNodeId} // From useVisualizationState
+                             connectionData={filteredConnectionData} // From useVisualizationState
+                             isLoadingConnections={isFiltering} // From useVisualizationState
+                         />
                      </div>
                 </div>
             </div>

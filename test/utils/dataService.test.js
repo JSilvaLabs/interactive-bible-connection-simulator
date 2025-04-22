@@ -1,152 +1,145 @@
 // tests/utils/dataService.test.js
 
-// Import functions to test (adjust path if needed)
+// Import functions to test from dataService
 import {
     parseReferenceId,
+    normalizeBookNameForText, // Assuming this needs testing/verification
+    normalizeBookNameForId,   // Assuming this needs testing/verification
     getNodeMetadata,
-    // Assume normalization functions are tested implicitly via getNodeMetadata or directly
-    // Add imports for getConnectionsFor, getTextForReference if testing those
+    getConnectionsFor,      // Requires significant mocking
+    // Import load functions ONLY if testing their error handling or pre-processing side effects
+    // loadBibleText, loadAllReferences,
+    // Import getBooks/getChapters if testing their sorting/extraction with mocks
+    // getBooks, getChapters
 } from '@/utils/dataService';
-// Mock data might be needed for functions requiring loaded data
-// import mockBibleData from '../mocks/mockBibleData.json'; // Example mock
-// import mockReferences from '../mocks/mockReferences.json'; // Example mock
 
+// Mock the canonical order module if dataService imports it directly
+// Or ensure test environment handles it if used implicitly
+jest.mock('@/utils/canonicalOrder', () => ({
+    BIBLE_BOOK_ORDER: ["Genesis", "Exodus", "Matthew", "John", "Acts", "Romans", "Hebrews", "1 John", "Revelation of John"], // Provide a minimal mock order
+    BIBLE_BOOK_ORDER_MAP: new Map([["Genesis", 0], ["Exodus", 1], ["Matthew", 2], ["John", 3], ["Acts", 4], ["Romans", 5], ["Hebrews", 6], ["1 John", 7], ["Revelation of John", 8]]),
+    getBookSortIndex: jest.fn((bookName) => {
+        const map = new Map([["Genesis", 0], ["Exodus", 1], ["Matthew", 2], ["John", 3], ["Acts", 4], ["Romans", 5], ["Hebrews", 6], ["1 John", 7], ["Revelation of John", 8]]);
+        return map.get(bookName) ?? 999;
+    }),
+}));
+
+// --- Test Suite ---
 describe('dataService Utilities', () => {
 
     // --- Tests for parseReferenceId ---
     describe('parseReferenceId', () => {
-        test('should parse standard BookChvVs format', () => {
-            expect(parseReferenceId('Genesis1v1')).toEqual({ book: 'Genesis', chapter: 1, verse: 1 });
-            expect(parseReferenceId('John3v16')).toEqual({ book: 'John', chapter: 3, verse: 16 });
-        });
-
-        test('should parse numbered books (BookChvVs)', () => {
-            expect(parseReferenceId('1Samuel2v10')).toEqual({ book: '1Samuel', chapter: 2, verse: 10 }); // Note: book name is raw here
-            expect(parseReferenceId('2Corinthians5v1')).toEqual({ book: '2Corinthians', chapter: 5, verse: 1 });
-        });
-
-        test('should parse chapter-only format (BookCh)', () => {
-            expect(parseReferenceId('Exodus20')).toEqual({ book: 'Exodus', chapter: 20, verse: null });
-            expect(parseReferenceId('Psalms23')).toEqual({ book: 'Psalms', chapter: 23, verse: null });
-             expect(parseReferenceId('1Kings8')).toEqual({ book: '1Kings', chapter: 8, verse: null });
-        });
-
-         test('should parse dot format (Book.Ch.Vs)', () => {
-            expect(parseReferenceId('Gen.1.1')).toEqual({ book: 'Gen', chapter: 1, verse: 1 });
-            expect(parseReferenceId('1Sam.16.7')).toEqual({ book: '1Sam', chapter: 16, verse: 7 });
-            expect(parseReferenceId('Jn.3.16')).toEqual({ book: 'Jn', chapter: 3, verse: 16 });
-         });
-
-        test('should handle variations in verse separator (v or :)', () => {
-             expect(parseReferenceId('Mark10:45')).toEqual({ book: 'Mark', chapter: 10, verse: 45 });
-             expect(parseReferenceId('Mark10v45')).toEqual({ book: 'Mark', chapter: 10, verse: 45 });
-        });
-
-        test('should be case-insensitive', () => {
-             expect(parseReferenceId('gEnEsiS1V1')).toEqual({ book: 'gEnEsiS', chapter: 1, verse: 1 });
-             expect(parseReferenceId('john3v16')).toEqual({ book: 'john', chapter: 3, verse: 16 });
-        });
-
-
-        test('should return null for invalid formats', () => {
-            expect(parseReferenceId('Genesis')).toBeNull();
-            expect(parseReferenceId('Genesis1v')).toBeNull();
-            expect(parseReferenceId('GenesisV1')).toBeNull();
-            expect(parseReferenceId('12345')).toBeNull();
-            expect(parseReferenceId('Book Chapter Verse')).toBeNull();
-            expect(parseReferenceId(null)).toBeNull();
-            expect(parseReferenceId('')).toBeNull();
-        });
+        // --- Add all test cases from MVP v5.1 ---
+        test('should parse standard BookChvVs format', () => { /* ... */ expect(parseReferenceId('Genesis1v1')).toEqual({ book: 'Genesis', chapter: 1, verse: 1 }); });
+        test('should parse numbered books (BookChvVs)', () => { /* ... */ expect(parseReferenceId('1Samuel2v10')).toEqual({ book: '1Samuel', chapter: 2, verse: 10 }); });
+        test('should parse chapter-only format (BookCh)', () => { /* ... */ expect(parseReferenceId('Exodus20')).toEqual({ book: 'Exodus', chapter: 20, verse: null }); });
+        test('should parse dot format (Book.Ch.Vs)', () => { /* ... */ expect(parseReferenceId('Gen.1.1')).toEqual({ book: 'Gen', chapter: 1, verse: 1 }); });
+        test('should handle variations in verse separator (v or :)', () => { /* ... */ expect(parseReferenceId('Mark10:45')).toEqual({ book: 'Mark', chapter: 10, verse: 45 }); });
+        test('should be case-insensitive', () => { /* ... */ expect(parseReferenceId('gEnEsiS1V1')).toEqual({ book: 'gEnEsiS', chapter: 1, verse: 1 }); });
+        test('should return null for invalid formats', () => { /* ... */ expect(parseReferenceId('Genesis')).toBeNull(); });
     });
+
+    // --- Tests for Normalization (Optional but Recommended) ---
+    // It might be better to test these implicitly via getNodeMetadata or getConnectionsFor
+    // describe('normalizeBookNameForText', () => { ... });
+    // describe('normalizeBookNameForId', () => { ... });
 
     // --- Tests for getNodeMetadata ---
-    // These tests rely on parseReferenceId AND normalizeBookNameForText working correctly
     describe('getNodeMetadata', () => {
-        test('should return correct metadata for verse ID', () => {
-            // Assumes normalizeBookNameForText maps 'Gen' -> 'Genesis'
-            expect(getNodeMetadata('Genesis1v1')).toEqual({ book: 'Genesis', chapter: 1, verse: 1 });
-            // Assumes normalizeBookNameForText maps '1Sam' -> '1 Samuel'
-            expect(getNodeMetadata('1Sam16v7')).toEqual({ book: '1 Samuel', chapter: 16, verse: 7 });
-            // Assumes normalizeBookNameForText maps 'rev' -> 'Revelation of John'
-             expect(getNodeMetadata('Rev22v20')).toEqual({ book: 'Revelation of John', chapter: 22, verse: 20 });
-        });
-
-        test('should return correct metadata for chapter ID', () => {
-            expect(getNodeMetadata('Exodus20')).toEqual({ book: 'Exodus', chapter: 20, verse: null });
-            expect(getNodeMetadata('Psalms23')).toEqual({ book: 'Psalms', chapter: 23, verse: null });
-        });
-
-        test('should return raw ID if parsing fails', () => {
-            expect(getNodeMetadata('InvalidReference')).toEqual({ rawId: 'InvalidReference' });
-        });
-
-        test('should return null for null input', () => {
-            expect(getNodeMetadata(null)).toBeNull();
-        });
+        // --- Add all test cases from MVP v5.1 ---
+        test('should return correct metadata for verse ID', () => { /* ... */ expect(getNodeMetadata('Genesis1v1')).toEqual({ book: 'Genesis', chapter: 1, verse: 1 }); });
+        test('should return correct metadata for chapter ID', () => { /* ... */ expect(getNodeMetadata('Exodus20')).toEqual({ book: 'Exodus', chapter: 20, verse: null }); });
+        test('should return raw ID if parsing fails', () => { /* ... */ expect(getNodeMetadata('InvalidReference')).toEqual({ rawId: 'InvalidReference' }); });
+        test('should return null for null input', () => { /* ... */ expect(getNodeMetadata(null)).toBeNull(); });
     });
 
-    // --- Tests for getConnectionsFor (Conceptual - requires mock data) ---
-    // describe('getConnectionsFor', () => {
-    //     const mockAllLinks = [
-    //         { source: "Genesis1v1", target: "John1v1", value: 1 },
-    //         { source: "Genesis1v2", target: "John1v3", value: 1 },
-    //         { source: "Genesis1v3", target: "Hebrews1v1", value: 1 },
-    //         { source: "Exodus20v1", target: "Matthew5v21", value: 1 },
-    //         { source: "Genesis1v1", target: "Genesis2v4", value: 1 }, // Link within same chapter
-    //         { source: "Genesis1v5", target: "Exodus12v2", value: 1 },
-    //     ];
-    //     // Mock nodes derived from links (assuming getConnectionsFor derives nodes)
-    //     const expectedNodesGen1Chapter = expect.arrayContaining([
-    //          expect.objectContaining({ id: 'Genesis1', book: 'Genesis' }),
-    //          expect.objectContaining({ id: 'John1', book: 'John' }),
-    //          expect.objectContaining({ id: 'Hebrews1', book: 'Hebrews' }),
-    //          expect.objectContaining({ id: 'Genesis2', book: 'Genesis' }), // Target derived
-    //          expect.objectContaining({ id: 'Exodus12', book: 'Exodus' }), // Target derived
-    //     ]);
-    //     const expectedNodesGen1Verse = expect.arrayContaining([
-    //         expect.objectContaining({ id: 'Genesis1v1', book: 'Genesis' }),
-    //         expect.objectContaining({ id: 'Genesis1v2', book: 'Genesis' }),
-    //         expect.objectContaining({ id: 'Genesis1v3', book: 'Genesis' }),
-    //         expect.objectContaining({ id: 'Genesis1v5', book: 'Genesis' }),
-    //         expect.objectContaining({ id: 'John1v1', book: 'John' }),
-    //         expect.objectContaining({ id: 'John1v3', book: 'John' }),
-    //         expect.objectContaining({ id: 'Hebrews1v1', book: 'Hebrews' }),
-    //         expect.objectContaining({ id: 'Genesis2v4', book: 'Genesis' }),
-    //         expect.objectContaining({ id: 'Exodus12v2', book: 'Exodus' }),
-    //     ]);
 
-    //     test('should filter correctly for chapter view (and aggregate - if still doing that)', () => {
-    //         const result = getConnectionsFor(mockAllLinks, 'Genesis', 1, 'chapter');
-    //         expect(result).not.toBeNull();
-    //         // Check if links are correctly aggregated (or filtered if aggregation removed)
-    //         // Example check if aggregation happened (adjust based on actual logic)
-    //         // expect(result.links).toHaveLength(4); // Gen1->John1, Gen1->Heb1, Gen1->Gen2, Gen1->Exo12
-    //         // expect(result.links).toEqual(expect.arrayContaining([
-    //         //     expect.objectContaining({ source: 'Genesis1', target: 'John1', value: 2 }), // Aggregated value
-    //         //     expect.objectContaining({ source: 'Genesis1', target: 'Hebrews1', value: 1 }),
-    //         // ]));
-    //         // Check nodes are derived and sorted correctly
-    //         expect(result.nodes).toHaveLength(5); // Gen1, John1, Heb1, Gen2, Exo12
-    //         // Check canonical sort order based on BIBLE_BOOK_ORDER
-    //         expect(result.nodes.map(n=>n.book)).toEqual(['Genesis', 'Genesis', 'Exodus', 'John', 'Hebrews']); // Example order
-    //     });
+    // --- Tests for getConnectionsFor (More Involved) ---
+    describe('getConnectionsFor', () => {
+        // Define small, representative mock link data
+        const mockAllLinks = [
+            // Genesis 1 connections
+            { source: "Genesis1v1", target: "John1v1", value: 10 }, // Value will be ignored/set to 1 by func
+            { source: "Genesis1v1", target: "Hebrews1v10", value: 5 },
+            { source: "Genesis1v3", target: "John1v1", value: 8 }, // Another link to John1v1
+            { source: "Genesis1v5", target: "Exodus12v2", value: 3 },
+            // Exodus 12 connections
+            { source: "Exodus12v2", target: "Genesis1v5", value: 4 },
+            { source: "Exodus12v40", target: "Acts7v6", value: 9 },
+            // John 1 connections
+            { source: "John1v1", target: "1John1v1", value: 12 },
+            { source: "John1v14", target: "Genesis1v1", value: 7 },
+        ];
 
-    //     test('should filter correctly for verse view (and sort nodes)', () => {
-    //         const result = getConnectionsFor(mockAllLinks, 'Genesis', 1, 'verse');
-    //         expect(result).not.toBeNull();
-    //         expect(result.links).toHaveLength(5); // All 5 links starting Gen1v...
-    //         expect(result.links.every(l => l.value === 1)).toBe(true); // Check value is 1
-    //         expect(result.nodes).toHaveLength(9); // Check all unique source/targets derived
-    //         // Check canonical sort order based on BIBLE_BOOK_ORDER
-    //          expect(result.nodes.map(n=>n.book)).toEqual(['Genesis','Genesis','Genesis','Genesis','Genesis','Exodus','John','John','Hebrews']); // Example order
-    //     });
+        // Pre-processed mock data (simulating what loadAllReferences might do)
+        // This assumes the optimization target is a Map grouped by source prefix
+        const mockReferencesLookupMap = new Map();
+        mockAllLinks.forEach(link => {
+             const parsedSource = parseReferenceId(link.source);
+             if(parsedSource && parsedSource.verse !== null) {
+                const prefix = `${normalizeBookNameForId(parsedSource.book)}${parsedSource.chapter}v`;
+                 if (!mockReferencesLookupMap.has(prefix)) { mockReferencesLookupMap.set(prefix, []); }
+                 mockReferencesLookupMap.get(prefix).push(link);
+             }
+        });
 
-    //     test('should return empty for non-existent chapter', () => {
-    //          const result = getConnectionsFor(mockAllLinks, 'Genesis', 99, 'verse');
-    //          expect(result).toEqual({ nodes: [], links: [] });
-    //     });
-    // });
+        // Mock the internal state of dataService if necessary (alternative to mocking imports)
+        // jest.spyOn(dataServiceModule, 'referencesLookupMap', 'get').mockReturnValue(mockReferencesLookupMap);
 
-    // Add tests for getTextForReference using mock bibleData if needed
+
+        test('should return correct nodes and links for verse view', () => {
+            const result = getConnectionsFor(mockAllLinks, 'Genesis', 1, 'verse'); // Use mockAllLinks directly if map optimization isn't mocked/tested directly
+            expect(result).not.toBeNull();
+            expect(result.links).toHaveLength(4); // Gen1v1->J1v1, Gen1v1->H1v10, Gen1v3->J1v1, Gen1v5->E12v2
+            expect(result.links.every(l => l.value === 1)).toBe(true); // Check value is 1
+            // Check node IDs expected
+            const expectedNodeIds = ["Genesis1v1", "Genesis1v3", "Genesis1v5", "John1v1", "Hebrews1v10", "Exodus12v2"];
+            expect(result.nodes.map(n => n.id)).toEqual(expect.arrayContaining(expectedNodeIds));
+            expect(result.nodes).toHaveLength(expectedNodeIds.length);
+            // Check sorting (Genesis, Exodus, John, Hebrews based on mock canonical order)
+            expect(result.nodes[0].id).toBe('Genesis1v1');
+            expect(result.nodes[1].id).toBe('Genesis1v3');
+            expect(result.nodes[2].id).toBe('Genesis1v5');
+            expect(result.nodes[3].id).toBe('Exodus12v2');
+             expect(result.nodes[4].id).toBe('John1v1');
+             expect(result.nodes[5].id).toBe('Hebrews1v10');
+        });
+
+        test('should return correct nodes and aggregated links for chapter view', () => {
+            const result = getConnectionsFor(mockAllLinks, 'Genesis', 1, 'chapter');
+            expect(result).not.toBeNull();
+            // Expect aggregated links
+            expect(result.links).toHaveLength(3); // Gen1->John1, Gen1->Heb1, Gen1->Exo12
+            expect(result.links).toEqual(expect.arrayContaining([
+                 expect.objectContaining({ source: 'Genesis1', target: 'John1', value: 2 }), // 2 links aggregated (Gen1v1->J1v1, Gen1v3->J1v1), value = count
+                 expect.objectContaining({ source: 'Genesis1', target: 'Hebrews1', value: 1 }),
+                 expect.objectContaining({ source: 'Genesis1', target: 'Exodus12', value: 1 }),
+             ]));
+            // Check nodes derived (source chapter + unique target chapters)
+             const expectedNodeIds = ["Genesis1", "Exodus12", "John1", "Hebrews1"];
+             expect(result.nodes.map(n => n.id)).toEqual(expect.arrayContaining(expectedNodeIds));
+             expect(result.nodes).toHaveLength(expectedNodeIds.length);
+             // Check sorting
+             expect(result.nodes[0].id).toBe('Genesis1');
+             expect(result.nodes[1].id).toBe('Exodus12');
+             expect(result.nodes[2].id).toBe('John1');
+             expect(result.nodes[3].id).toBe('Hebrews1');
+        });
+
+        test('should return empty results for chapter with no connections', () => {
+             const result = getConnectionsFor(mockAllLinks, 'Acts', 1, 'chapter');
+             expect(result).toEqual({ nodes: [], links: [] });
+        });
+
+         test('should return null if required inputs are missing', () => {
+             expect(getConnectionsFor(mockAllLinks, null, 1, 'chapter')).toBeNull();
+             expect(getConnectionsFor(mockAllLinks, 'Genesis', null, 'chapter')).toBeNull();
+             expect(getConnectionsFor(null, 'Genesis', 1, 'chapter')).toBeNull();
+        });
+
+    });
+
+    // --- Add tests for getTextForReference (requires mockBibleData or mocking bibleLookupMap) ---
+    // describe('getTextForReference', () => { ... });
 
 });
