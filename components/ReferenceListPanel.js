@@ -2,8 +2,8 @@
 
 import React from 'react';
 // Import helpers needed for sorting target IDs canonically
-import { parseReferenceId, normalizeBookNameForId } from '@/utils/dataService';
-import { getBookSortIndex } from '@/utils/canonicalOrder';
+import { parseReferenceId, normalizeBookNameForId } from '@/utils/dataService'; // Make sure these are exported from dataService
+import { getBookSortIndex } from '@/utils/canonicalOrder'; // Import directly
 
 /**
  * Component to display a list of outgoing cross-references
@@ -37,11 +37,12 @@ function ReferenceListPanel({
                 const parsedB = parseReferenceId(b.target);
 
                 // Handle cases where parsing might fail
-                if (!parsedA && !parsedB) return 0;
+                if (!parsedA && !parsedB) return a.target.localeCompare(b.target); // Fallback sort if both fail
                 if (!parsedA) return 1;  // Sort unparseable targets last
-                if (!parsedB) return -1;
+                if (!parsedB) return -1; // Sort unparseable targets last
 
                 // Normalize book names using the ID normalization scheme for comparison
+                // Ensure normalizeBookNameForId returns the canonical name used in sorting map
                 const bookA = normalizeBookNameForId(parsedA.book);
                 const bookB = normalizeBookNameForId(parsedB.book);
 
@@ -56,12 +57,11 @@ function ReferenceListPanel({
                 if (parsedA.chapter !== parsedB.chapter) return parsedA.chapter - parsedB.chapter;
 
                 // Tertiary sort: Verse Number (treat chapter-only refs as verse 0)
-                 // Verse will be null if the target ID is chapter-level (e.g. from Chapter View mode)
                 const verseA = parsedA.verse === null ? 0 : parsedA.verse;
                 const verseB = parsedB.verse === null ? 0 : parsedB.verse;
                 if (verseA !== verseB) return verseA - verseB;
 
-                // Fallback sort (shouldn't be needed if IDs are unique targets for a given source)
+                // Fallback sort (if somehow IDs are identical after parsing)
                 return a.target.localeCompare(b.target);
             })
             .map(link => ({ target: link.target, value: link.value })); // Extract target and value (value is likely 1)
@@ -84,7 +84,7 @@ function ReferenceListPanel({
                 {displayTitle} {references.length > 0 ? `(${references.length})` : ''}
             </h2>
              {/* Scrollable Content Area */}
-            <div className="overflow-y-auto flex-grow custom-scrollbar">
+            <div className="overflow-y-auto flex-grow custom-scrollbar"> {/* Added custom-scrollbar class if needed */}
                 {message ? (
                      <p className="text-sm text-gray-500 dark:text-gray-400 p-1 italic">{message}</p>
                 ) : (
