@@ -8,9 +8,9 @@ function VisualizationContainer({
     width,
     height,
     onNodeSelect,
-    onNodeHoverStart, // New prop
-    onNodeHoverEnd,   // New prop
-    isLoading         // Prop indicating filtering/loading is happening
+    onNodeHoverStart, // Already includes hover props
+    onNodeHoverEnd,   // Already includes hover props
+    isLoading         // Already includes loading prop
  }) {
 
   let content;

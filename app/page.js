@@ -6,7 +6,7 @@ import ViewToggle from '@/components/ViewToggle';
 import TextDisplayPanel from '@/components/TextDisplayPanel';
 import ReferenceSelector from '@/components/ReferenceSelector';
 import ReferenceListPanel from '@/components/ReferenceListPanel';
-import MetadataPanel from '@/components/MetadataPanel'; // Import new panel
+import MetadataPanel from '@/components/MetadataPanel'; // Already included
 import {
     loadBibleText,
     loadAllReferences,
@@ -29,11 +29,11 @@ export default function MainPage() {
 
     const [selectedBook, setSelectedBook] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
-    const [viewMode, setViewMode] = useState('chapter'); // 'chapter' or 'verse'
+    const [viewMode, setViewMode] = useState('chapter');
 
     const [filteredConnectionData, setFilteredConnectionData] = useState(null);
-    const [selectedNodeId, setSelectedNodeId] = useState(null); // Clicked node
-    const [hoveredNodeId, setHoveredNodeId] = useState(null); // Hovered node
+    const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [hoveredNodeId, setHoveredNodeId] = useState(null); // Already included
 
     const [dimensions, setDimensions] = useState({ width: 600, height: 600 });
 
@@ -66,9 +66,8 @@ export default function MainPage() {
             console.log(`Filtering for: ${selectedBook} ${selectedChapter}, Mode: ${viewMode}`);
             setIsFiltering(true);
             setSelectedNodeId(null);
-            setHoveredNodeId(null); // Clear hover on filter change
-            // Use requestAnimationFrame or setTimeout for smoother UI update
-            requestAnimationFrame(() => {
+            setHoveredNodeId(null);
+            requestAnimationFrame(() => { // Use rAF for smoother UI update
                  try {
                     const filteredData = getConnectionsFor(allReferencesData, selectedBook, selectedChapter, viewMode);
                     setFilteredConnectionData(filteredData);
@@ -82,7 +81,7 @@ export default function MainPage() {
                 }
             });
         } else {
-            setFilteredConnectionData(null); // Clear diagram
+            setFilteredConnectionData(null);
         }
     }, [selectedBook, selectedChapter, viewMode, allReferencesData]);
 
@@ -94,11 +93,11 @@ export default function MainPage() {
     useEffect(() => {
         const handleResize = () => {
              const isLargeScreen = window.innerWidth >= 1024;
-             const infoPanelWidth = isLargeScreen ? 320 : 0; // Approx width for right column
+             const infoPanelWidth = isLargeScreen ? 320 : 0;
              const gap = isLargeScreen ? 16 : 0;
              const padding = 32;
              const availableVizWidth = window.innerWidth - infoPanelWidth - gap - padding;
-             const size = Math.max(300, Math.min(availableVizWidth * 0.95, window.innerHeight * 0.6)); // Adjust constraints
+             const size = Math.max(300, Math.min(availableVizWidth * 0.95, window.innerHeight * 0.6));
             setDimensions({ width: size, height: size });
         };
         handleResize();
@@ -112,28 +111,21 @@ export default function MainPage() {
         setSelectedChapter(null);
         setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []);
     };
-
     const handleChapterChange = (chapterNum) => {
         setSelectedChapter(chapterNum);
     };
-
     const handleToggleView = () => {
         setViewMode(prevMode => (prevMode === 'chapter' ? 'verse' : 'chapter'));
     };
-
     const handleNodeSelect = (nodeId) => {
         console.log("Node selected:", nodeId);
         setSelectedNodeId(nodeId);
-        setHoveredNodeId(null); // Clear hover when clicking
+        setHoveredNodeId(null);
     };
-
-    const handleNodeHoverStart = (nodeId) => {
-        // console.log("Node hover start:", nodeId); // Can be noisy
+    const handleNodeHoverStart = (nodeId) => { // Already included
         setHoveredNodeId(nodeId);
     };
-
-    const handleNodeHoverEnd = () => {
-        // console.log("Node hover end");
+    const handleNodeHoverEnd = () => { // Already included
         setHoveredNodeId(null);
     };
 
@@ -148,7 +140,7 @@ export default function MainPage() {
     return (
         <main className="flex flex-col items-center h-screen max-h-screen p-4 md:p-6 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 overflow-hidden">
             {/* Header Area */}
-            <div className="flex-shrink-0 w-full max-w-7xl px-4"> {/* Wider max-width */}
+            <div className="flex-shrink-0 w-full max-w-7xl px-4">
                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 text-center">
                     Internal Bible Connection Simulator (MVP v3.0)
                 </h1>
@@ -160,18 +152,18 @@ export default function MainPage() {
                         selectedChapter={selectedChapter}
                         onBookChange={handleBookChange}
                         onChapterChange={handleChapterChange}
-                        isDisabled={isLoadingData || isFiltering} // Disable during initial load OR filtering
+                        isDisabled={isLoadingData || isFiltering}
                     />
                     <ViewToggle
                         currentView={viewMode}
                         onToggle={handleToggleView}
-                        disabled={!selectedChapter || isFiltering || isLoadingData} // Disable if no chapter, filtering, or initial load
+                        disabled={!selectedChapter || isFiltering || isLoadingData}
                     />
                 </div>
             </div>
 
             {/* Main Content Area */}
-             <div className="flex flex-col lg:flex-row w-full max-w-7xl gap-4 flex-grow min-h-0 px-4"> {/* Wider max-width */}
+             <div className="flex flex-col lg:flex-row w-full max-w-7xl gap-4 flex-grow min-h-0 px-4">
                 {/* Visualization Area */}
                 <div className="w-full lg:w-2/3 xl:w-3/4 h-full border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-2">
                      {isFiltering && ( /* Filtering Loader Overlay */
@@ -191,24 +183,24 @@ export default function MainPage() {
                 </div>
 
                 {/* Info Panels Area (Side Column) */}
-                <div className="w-full lg:w-1/3 xl:w-1/4 h-full flex flex-col gap-4 lg:max-h-full"> {/* Allow scrolling within this column */}
-                     <div className="flex-shrink-0"> {/* Metadata panel doesn't need to grow */}
+                <div className="w-full lg:w-1/3 xl:w-1/4 h-full flex flex-col gap-4 lg:max-h-full">
+                     <div className="flex-shrink-0"> {/* Metadata panel */}
                         <MetadataPanel
                              selectedNodeId={selectedNodeId}
-                             hoveredNodeId={hoveredNodeId}
+                             hoveredNodeId={hoveredNodeId} // Pass hover ID
                          />
                      </div>
-                     <div className="flex-1 min-h-[150px]"> {/* Text panel can grow */}
+                     <div className="flex-1 min-h-[150px]"> {/* Text panel */}
                         <TextDisplayPanel
                             selectedNodeId={selectedNodeId}
-                            hoveredNodeId={hoveredNodeId} // Pass hover ID (panel decides how to use it)
+                            hoveredNodeId={hoveredNodeId} // Pass hover ID
                             bibleData={bibleData}
                             isLoadingBibleData={isLoadingData}
                         />
                      </div>
-                     <div className="flex-1 min-h-[150px]"> {/* Reference list panel can grow */}
+                     <div className="flex-1 min-h-[150px]"> {/* Reference list panel */}
                         <ReferenceListPanel
-                             selectedNodeId={selectedNodeId} // Only show list for selected node
+                             selectedNodeId={selectedNodeId} // Only uses selected ID
                              connectionData={filteredConnectionData}
                              isLoadingConnections={isFiltering}
                          />

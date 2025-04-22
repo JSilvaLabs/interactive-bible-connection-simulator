@@ -21,6 +21,7 @@ function TextDisplayPanel({
     if (isLoadingBibleData) {
         setDisplayTitle("Loading...");
         setDisplayText("Loading Bible data...");
+        setIsLoadingText(false); // Not loading text specifically yet
         return; // Wait for Bible data to load
     }
 
@@ -28,7 +29,7 @@ function TextDisplayPanel({
         setIsLoadingText(true); // Indicate text lookup potentially starting
         setDisplayTitle(isHover ? `Hover: ${idToFetch}` : `Selected: ${idToFetch}`);
 
-        // Simulate async lookup or allow UI to update before potential slow lookup
+        // Use rAF to allow UI update before potentially slow lookup
         requestAnimationFrame(() => {
             if (!isMounted) return;
             try {
@@ -38,7 +39,8 @@ function TextDisplayPanel({
                 console.error(`Error getting text for ${idToFetch}:`, error);
                 setDisplayText(`Error retrieving text for ${idToFetch}.`);
             } finally {
-                setIsLoadingText(false);
+                 // Ensure state update happens even if component unmounted mid-lookup
+                 if (isMounted) setIsLoadingText(false);
             }
         });
 
@@ -48,7 +50,7 @@ function TextDisplayPanel({
         setDisplayText("Select Book/Chapter, then hover over or click a node on the diagram to view text.");
         setIsLoadingText(false);
     } else {
-         // Bible data itself failed to load (handled by isLoadingBibleData generally)
+         // Bible data itself failed to load
          setDisplayTitle("Error");
          setDisplayText("Bible data is unavailable.");
          setIsLoadingText(false);
@@ -68,9 +70,9 @@ function TextDisplayPanel({
         {/* Scrollable Content Area */}
         <div className="overflow-y-auto flex-grow custom-scrollbar">
             {isLoadingText || isLoadingBibleData ? (
-                // Show loading indicator specifically for text retrieval or initial load
-                <div className="flex justify-center items-center h-full text-gray-500 dark:text-gray-400 animate-pulse">
-                    {isLoadingBibleData ? "Loading Bible data..." : "Loading text..."}
+                // Show loading indicator
+                <div className="flex justify-center items-center h-full text-gray-500 dark:text-gray-400 animate-pulse p-4 text-center">
+                    {isLoadingBibleData ? "Loading Bible data..." : "Looking up text..."}
                 </div>
             ) : (
                 // Use pre for formatting, whitespace-pre-wrap for wrapping long lines

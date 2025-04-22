@@ -10,7 +10,7 @@ import { getNodeMetadata } from '@/utils/dataService';
  */
 function MetadataPanel({ selectedNodeId, hoveredNodeId }) {
     // Determine which ID to display info for: selected takes precedence
-    const displayId = selectedNodeId || hoveredNodeId;
+    const displayId = selectedNodeId || hoveredNodeId; // Prioritize selection
     const metadata = displayId ? getNodeMetadata(displayId) : null;
 
     // Determine the title based on interaction type
@@ -36,7 +36,7 @@ function MetadataPanel({ selectedNodeId, hoveredNodeId }) {
                         <div><strong>Book:</strong> {metadata.book}</div>
                         <div><strong>Chapter:</strong> {metadata.chapter}</div>
                         {/* Only display verse if it's not null */}
-                        {metadata.verse !== null && (
+                        {metadata.verse !== null && metadata.verse !== undefined && (
                              <div><strong>Verse:</strong> {metadata.verse}</div>
                         )}
                     </div>
@@ -44,7 +44,7 @@ function MetadataPanel({ selectedNodeId, hoveredNodeId }) {
                      // Display raw ID if parsing failed
                      <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1 p-1">
                          <div><strong>ID:</strong> {metadata.rawId}</div>
-                         <div className="text-xs text-red-500 italic">(Could not parse)</div>
+                         <div className="text-xs text-red-500 italic">(Could not parse ID)</div>
                      </div>
                 ): (
                      // Default message when nothing is selected or hovered
