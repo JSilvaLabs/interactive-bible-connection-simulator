@@ -27,36 +27,40 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+  /* Ensure body allows vertical scroll if content overflows on small screens */
+  /* Consider max-height: 100vh; overflow: hidden; on html/body if using fixed layouts */
 }
 
-/* Custom styles added for the D3 Chord Diagram */
+/* Styles for D3 Chord Diagram elements */
 .chord-diagram .arc path {
-  stroke: #333;
+  /* stroke is now set inline by D3 */
   stroke-width: 0.5px;
 }
 
 .chord-diagram .ribbon path {
-  fill-opacity: 0.7;
-  stroke: #fff;
+  /* fill-opacity and stroke set inline by D3 */
   stroke-width: 0.5px;
 }
 
 .chord-diagram .arc-label {
-  font-size: 10px; /* Adjust as needed */
-  fill: #333;
-  pointer-events: none; /* Labels shouldn't block hover on arcs */
-  text-anchor: middle;
+  /* font-size and fill set inline or via Tailwind */
+  pointer-events: none;
+  /* text-anchor handled inline by D3 */
 }
 
-/* Dark mode adjustments for the custom chord diagram styles */
+
+/* Optional: Styling for the ReferenceListPanel */
+/* Add a class 'reference-list' to the outer div of ReferenceListPanel.js if using these */
+.reference-list ul li {
+   transition: background-color 0.15s ease-in-out; /* Smooth hover effect */
+}
+
+.reference-list ul li:hover {
+  background-color: rgba(0, 0, 0, 0.05); /* Light background on hover */
+  cursor: pointer; /* Indicate items might be clickable later */
+}
 @media (prefers-color-scheme: dark) {
-  .chord-diagram .arc path {
-    stroke: #ccc;
+  .reference-list ul li:hover {
+    background-color: rgba(255, 255, 255, 0.08); /* Slightly lighter dark background on hover */
   }
-  .chord-diagram .ribbon path {
-    stroke: #333;
-  }
-   .chord-diagram .arc-label {
-     fill: #ccc;
-   }
 }
