@@ -1,0 +1,6 @@
+[
+    { "source": "Gen1v1", "target": "Joh1v1", "value": 2 },
+    { "source": "Gen1v1", "target": "Heb1v10", "value": 1 },
+    { "source": "Gen1v3", "target": "2Cor4v6", "value": 1 },
+    { "source": "Rev22v20", "target": "Joh21v25", "value": 1 }
+  ]
