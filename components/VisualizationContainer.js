@@ -1,18 +1,24 @@
 "use client";
 
 import React from 'react';
-import ChordDiagram from './ChordDiagram'; // Assuming ChordDiagram is in the same folder
+import ChordDiagram from './ChordDiagram';
 
-function VisualizationContainer({ data, width, height }) {
-  // This container primarily sets up the space and passes props
-  // It ensures ChordDiagram has the data and dimensions it needs
-  // Added a conditional render check for data
+function VisualizationContainer({ data, width, height, onNodeSelect }) { // Added onNodeSelect prop
+
   return (
-    <div className="w-full h-full flex items-center justify-center chord-diagram-container">
+    <div className="w-full h-full flex items-center justify-center chord-diagram-container bg-white dark:bg-gray-900">
       {data && data.nodes && data.links && width > 0 && height > 0 ? (
-        <ChordDiagram data={data} width={width} height={height} />
+        // Pass the onNodeSelect callback down to ChordDiagram
+        <ChordDiagram
+           data={data}
+           width={width}
+           height={height}
+           onNodeSelect={onNodeSelect}
+        />
       ) : (
-        <p>Loading data or calculating dimensions...</p> // Placeholder
+        <div className="text-gray-500 dark:text-gray-400">
+            { data ? "Calculating dimensions..." : "Loading connection data..." }
+        </div>
       )}
     </div>
   );
