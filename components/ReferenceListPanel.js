@@ -1,13 +1,15 @@
+// components/ReferenceListPanel.js (MVP v8.0 Update - Title Formatting)
 "use client";
 
 import React from 'react';
-// Import helpers needed for sorting target IDs canonically
-import { parseReferenceId, normalizeBookNameForId } from '@/utils/dataService'; // Make sure these are exported from dataService
-import { getBookSortIndex } from '@/utils/canonicalOrder'; // Import directly
+// Import helpers needed for sorting target IDs AND getting metadata for title
+import { parseReferenceId, normalizeBookNameForId, getNodeMetadata } from '@/utils/dataService';
+import { getBookSortIndex } from '@/utils/canonicalOrder';
 
 /**
  * Component to display a list of outgoing cross-references
- * for a selected node (chapter or verse), sorted canonically.
+ * for a selected node (chapter or verse), sorted canonically,
+ * with updated title formatting.
  */
 function ReferenceListPanel({
     selectedNodeId,       // The ID of the node selected in the diagram
@@ -16,85 +18,80 @@ function ReferenceListPanel({
  }) {
 
     let references = [];
-    let displayTitle = "Connections List";
+    let displayTitle = "Connections List"; // Default title
     let message = null;
+    let connectionCount = 0;
 
     if (isLoadingConnections) {
         displayTitle = "Loading Connections...";
         message = "Filtering connections based on selection...";
     } else if (!selectedNodeId) {
-        displayTitle = "Connections List";
-        message = "Select a node (chapter/verse) on the diagram to see its outgoing connections in this view.";
+        // Keep default title
+        message = "Select a node on the diagram to see its outgoing connections.";
     } else if (connectionData && connectionData.links) {
-        displayTitle = `Connections from ${selectedNodeId}`;
+         // Format title based on selectedNodeId type
+         const metadata = getNodeMetadata(selectedNodeId);
+         if (metadata && metadata.book) {
+             if (metadata.verse !== null) { // Specific Verse
+                 // MVP v8.0 Format: Connections from Book #:# (#)
+                 displayTitle = `Connections from ${metadata.book} ${metadata.chapter}:${metadata.verse}`;
+             } else { // Chapter level ID
+                 // MVP v8.0 Format: Connections from Book # (#)
+                 displayTitle = `Connections from ${metadata.book} ${metadata.chapter}`;
+             }
+         } else {
+              displayTitle = `Connections from ${selectedNodeId}`; // Fallback
+         }
 
-        // Filter links originating from the selected node
+        // Filter and sort references
         references = connectionData.links
             .filter(link => link.source === selectedNodeId)
-            .sort((a, b) => {
-                // Canonical Sort Logic for Target References
-                const parsedA = parseReferenceId(a.target);
-                const parsedB = parseReferenceId(b.target);
-
-                // Handle cases where parsing might fail
-                if (!parsedA && !parsedB) return a.target.localeCompare(b.target); // Fallback sort if both fail
-                if (!parsedA) return 1;  // Sort unparseable targets last
-                if (!parsedB) return -1; // Sort unparseable targets last
-
-                // Normalize book names using the ID normalization scheme for comparison
-                // Ensure normalizeBookNameForId returns the canonical name used in sorting map
-                const bookA = normalizeBookNameForId(parsedA.book);
-                const bookB = normalizeBookNameForId(parsedB.book);
-
-                // Get canonical sort indices
-                const indexA = getBookSortIndex(bookA);
-                const indexB = getBookSortIndex(bookB);
-
-                // Primary sort: Canonical Book Order
+            .sort((a, b) => { /* ... Canonical sort logic from v6.1 ... */
+                const parsedA = parseReferenceId(a.target); const parsedB = parseReferenceId(b.target);
+                if (!parsedA && !parsedB) return a.target.localeCompare(b.target); if (!parsedA) return 1; if (!parsedB) return -1;
+                const bookA = normalizeBookNameForId(parsedA.book); const bookB = normalizeBookNameForId(parsedB.book);
+                const indexA = getBookSortIndex(bookA); const indexB = getBookSortIndex(b.book);
                 if (indexA !== indexB) return indexA - indexB;
-
-                // Secondary sort: Chapter Number
                 if (parsedA.chapter !== parsedB.chapter) return parsedA.chapter - parsedB.chapter;
+                const verseA = parsedA.verse === null ? 0 : parsedA.verse; const verseB = parsedB.verse === null ? 0 : parsedB.verse;
+                if (verseA !== verseB) return verseA - verseB; return a.target.localeCompare(b.target);
+             })
+            .map(link => ({ target: link.target, value: link.value }));
 
-                // Tertiary sort: Verse Number (treat chapter-only refs as verse 0)
-                const verseA = parsedA.verse === null ? 0 : parsedA.verse;
-                const verseB = parsedB.verse === null ? 0 : parsedB.verse;
-                if (verseA !== verseB) return verseA - verseB;
+         connectionCount = references.length; // Get count after filtering
+         displayTitle += ` (${connectionCount})`; // Add count to title
 
-                // Fallback sort (if somehow IDs are identical after parsing)
-                return a.target.localeCompare(b.target);
-            })
-            .map(link => ({ target: link.target, value: link.value })); // Extract target and value (value is likely 1)
-
-        if (references.length === 0) {
+        if (connectionCount === 0) {
             message = "No outgoing connections found for this node in the current filtered view.";
         }
     } else if (selectedNodeId) {
-        // Selected node, but connection data might still be loading/null
-        displayTitle = `Connections from ${selectedNodeId}`;
+        // Handle case where node is selected but connection data is null (e.g., during initial filtering)
+        const metadata = getNodeMetadata(selectedNodeId);
+         if (metadata && metadata.book) { // Format title even if data is loading
+             displayTitle = `Connections from ${metadata.verse !== null ? `${metadata.book} ${metadata.chapter}:${metadata.verse}` : `${metadata.book} ${metadata.chapter}`}`;
+         } else { displayTitle = `Connections from ${selectedNodeId}`; }
+         displayTitle += ` (...)`; // Indicate count is pending
         message = "Connection data not available or still loading...";
     }
 
-
     return (
-        // Added 'reference-list' class for optional CSS, plus layout classes
         <div className="p-4 border border-gray-300 dark:border-gray-700 rounded-lg h-full overflow-hidden flex flex-col bg-gray-100 dark:bg-gray-800 shadow-inner reference-list">
              {/* Sticky Header */}
-            <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-gray-100 dark:bg-gray-800 z-10 flex-shrink-0">
-                {displayTitle} {references.length > 0 ? `(${references.length})` : ''}
+            <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-gray-100 dark:bg-gray-800 z-10 flex-shrink-0 truncate" title={displayTitle}>
+                {displayTitle}
+                {/* Count is now part of the title */}
             </h2>
              {/* Scrollable Content Area */}
-            <div className="overflow-y-auto flex-grow custom-scrollbar"> {/* Added custom-scrollbar class if needed */}
+            <div className="overflow-y-auto flex-grow custom-scrollbar">
                 {message ? (
                      <p className="text-sm text-gray-500 dark:text-gray-400 p-1 italic">{message}</p>
                 ) : (
                     <ul className="list-none p-0 m-0 divide-y divide-gray-200 dark:divide-gray-700">
                         {references.map((ref, index) => (
                             <li key={`${ref.target}-${index}-${ref.value}`} className="text-sm py-1.5 px-1 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100">
-                                {/* Consider making this a link or interactive later */}
                                 <span className="font-mono text-gray-800 dark:text-gray-200">→ {ref.target}</span>
-                                {/* Display value (connection count = 1 in this MVP) */}
-                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({ref.value})</span>
+                                {/* Value is likely 1 (connection count) */}
+                                {/* <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({ref.value})</span> */}
                             </li>
                         ))}
                     </ul>
