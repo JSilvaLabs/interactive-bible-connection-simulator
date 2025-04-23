@@ -1,59 +1,52 @@
-// hooks/useVisualizationState.js (Corrected - Duplicate Function Removed)
+// hooks/useVisualizationState.js (MVP v8.1 Update - Verse Selection Effect & Default Node)
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 // Import necessary functions from dataService
-// Ensure getBooks and getVersesForChapter are imported correctly
-import { getConnectionsFor, getChapters, getBooks, getVersesForChapter, normalizeBookNameForText } from '@/utils/dataService';
+import {
+    getConnectionsFor,
+    getChapters,
+    getBooks,
+    getVersesForChapter,
+    normalizeBookNameForId // Needed for constructing default Node ID
+} from '@/utils/dataService';
 
-/**
- * Custom hook to manage state related to user selections,
- * data filtering for visualization, interaction callbacks,
- * and setting the initial default view (Genesis 5, Chapter Mode).
- */
 export function useVisualizationState(bibleData, allReferencesData) {
-    // --- State for User Selections & View ---
+    // --- State ---
     const [selectedBook, setSelectedBook] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
     const [selectedVerse, setSelectedVerse] = useState(null);
     const [viewMode, setViewMode] = useState('chapter'); // Default to chapter view
     const [chapterList, setChapterList] = useState([]);
     const [verseList, setVerseList] = useState([]);
-
-    // --- State for Derived/Filtered Data ---
     const [filteredConnectionData, setFilteredConnectionData] = useState(null);
     const [isFiltering, setIsFiltering] = useState(false);
-
-    // --- State for Diagram Interactions ---
-    const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [selectedNodeId, setSelectedNodeId] = useState(null); // Track selected node for panels
     const [hoveredNodeId, setHoveredNodeId] = useState(null);
 
      // --- Effect to Set Default Selection ---
      useEffect(() => {
-        // Set default only if bibleData is loaded/valid and no book is selected yet
         if (bibleData && bibleData.books && !selectedBook && !selectedChapter) {
-            const books = getBooks(bibleData); // Use imported getBooks
+            const books = getBooks(bibleData);
             const defaultBook = "Genesis";
             const defaultChapter = 5;
 
             if (books && books.includes(defaultBook)) {
-                const defaultChapters = getChapters(bibleData, defaultBook); // Use imported getChapters
+                const defaultChapters = getChapters(bibleData, defaultBook);
                 if (defaultChapters && defaultChapters.includes(defaultChapter)) {
                     setSelectedBook(defaultBook);
                     setSelectedChapter(defaultChapter);
                     setChapterList(defaultChapters);
-                    // Populate verse list using imported getVersesForChapter
                     const defaultVerses = getVersesForChapter(bibleData, defaultBook, defaultChapter);
                     setVerseList(defaultVerses);
-                    console.log(`useVisState: Set default selection: ${defaultBook} ${defaultChapter} (View Mode: ${viewMode})`);
-                } else {
-                     console.warn(`useVisState: Could not find default chapter ${defaultChapter} in ${defaultBook}`);
-                }
-            } else {
-                 console.warn(`useVisState: Default book ${defaultBook} not found in book list or book list empty.`);
-            }
+                    // *** MVP v8.1: Set default selectedNodeId to the chapter ID ***
+                    const defaultNodeId = `${normalizeBookNameForId(defaultBook)}${defaultChapter}`;
+                    setSelectedNodeId(defaultNodeId);
+                    console.log(`useVisState: Set default selection: ${defaultBook} ${defaultChapter}, Node: ${defaultNodeId}, View: ${viewMode}`);
+                } else { console.warn(`useVisState: Could not find default chapter ${defaultChapter} in ${defaultBook}`); }
+            } else { console.warn(`useVisState: Default book ${defaultBook} not found in book list or list empty.`); }
         }
-    }, [bibleData, selectedBook, selectedChapter, viewMode]); // Dependencies
+    }, [bibleData, selectedBook, selectedChapter, viewMode]); // Re-run if data loads or selection cleared
 
 
     // --- Effect to Update Filtered Data ---
@@ -61,19 +54,14 @@ export function useVisualizationState(bibleData, allReferencesData) {
         let isMounted = true;
         if (selectedBook && selectedChapter && allReferencesData) {
             setIsFiltering(true);
-            setSelectedNodeId(null);
+            // Don't reset selectedNodeId here anymore, let handlers manage it
+            // setSelectedNodeId(null);
             setHoveredNodeId(null);
 
             requestAnimationFrame(() => {
                 if (!isMounted) return;
                 try {
-                    // Call imported getConnectionsFor
-                    const filteredData = getConnectionsFor(
-                        allReferencesData,
-                        selectedBook,
-                        selectedChapter,
-                        viewMode
-                    );
+                    const filteredData = getConnectionsFor(allReferencesData, selectedBook, selectedChapter, viewMode);
                      if (isMounted) setFilteredConnectionData(filteredData);
                 } catch (err) {
                     console.error("useVisualizationState: Filtering failed:", err);
@@ -83,10 +71,7 @@ export function useVisualizationState(bibleData, allReferencesData) {
                 }
             });
         } else {
-             if (isMounted) {
-                setFilteredConnectionData(null);
-                setIsFiltering(false);
-             }
+             if (isMounted) { setFilteredConnectionData(null); setIsFiltering(false); }
         }
         return () => { isMounted = false; };
     }, [selectedBook, selectedChapter, viewMode, allReferencesData]);
@@ -97,50 +82,76 @@ export function useVisualizationState(bibleData, allReferencesData) {
         setSelectedChapter(null);
         setSelectedVerse(null);
         setFilteredConnectionData(null);
-        // Use imported getChapters
         setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []);
         setVerseList([]);
-    }, [bibleData]); // Dependency needed
+        setSelectedNodeId(null); // Reset selected node
+    }, [bibleData]);
 
     const handleChapterChange = useCallback((chapterNum) => {
         const newChapter = chapterNum ? parseInt(chapterNum, 10) : null;
         setSelectedChapter(newChapter);
-        setSelectedVerse(null);
-        // Use imported getVersesForChapter
+        setSelectedVerse(null); // Reset verse
         setVerseList(bibleData && selectedBook && newChapter ? getVersesForChapter(bibleData, selectedBook, newChapter) : []);
-    }, [bibleData, selectedBook]); // Dependencies needed
+        // *** MVP v8.1: Set selectedNodeId to chapter ID ***
+        if (selectedBook && newChapter !== null) {
+            const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${newChapter}`;
+            setSelectedNodeId(chapterNodeId);
+        } else {
+            setSelectedNodeId(null);
+        }
+    }, [bibleData, selectedBook]); // Add selectedBook dependency
 
      const handleVerseChange = useCallback((verseNum) => {
-        setSelectedVerse(verseNum ? parseInt(verseNum, 10) : null);
-        // Does not trigger filtering in this iteration
-     }, []);
+        const newVerse = verseNum ? parseInt(verseNum, 10) : null;
+        setSelectedVerse(newVerse);
+        // *** MVP v8.1: Update selectedNodeId based on verse selection ***
+        if (selectedBook && selectedChapter !== null) {
+            if (newVerse !== null) {
+                // Construct and select verse ID
+                const verseNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}v${newVerse}`;
+                setSelectedNodeId(verseNodeId);
+                console.log("Verse selected, Node ID:", verseNodeId);
+            } else {
+                // Verse deselected (e.g., "All Verses"), select the chapter node
+                const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
+                setSelectedNodeId(chapterNodeId);
+                 console.log("Verse deselected, Node ID:", chapterNodeId);
+            }
+        } else {
+             setSelectedNodeId(null); // Fallback safety
+        }
+     }, [selectedBook, selectedChapter]); // Add dependencies
 
     const handleToggleView = useCallback(() => {
-        setViewMode(prevMode => (prevMode === 'chapter' ? 'verse' : 'chapter'));
-    }, []);
+        setViewMode(prevMode => {
+            const newMode = prevMode === 'chapter' ? 'verse' : 'chapter';
+            // When switching view mode, reset selected node ID to the chapter level
+            if (selectedBook && selectedChapter !== null) {
+                 const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
+                 setSelectedNodeId(chapterNodeId);
+            } else {
+                 setSelectedNodeId(null);
+            }
+            setSelectedVerse(null); // Also reset specific verse selection
+            return newMode;
+        });
+    }, [selectedBook, selectedChapter]); // Add dependencies
 
     const handleNodeSelect = useCallback((nodeId) => {
         setSelectedNodeId(nodeId);
         setHoveredNodeId(null);
+        // Optional: Update dropdowns if user clicks a node from a *different* chapter/verse?
+        // For now, clicking only updates the selectedNodeId for panels.
     }, []);
 
-    const handleNodeHoverStart = useCallback((nodeId) => {
-        setHoveredNodeId(nodeId);
-    }, []);
-
-    const handleNodeHoverEnd = useCallback(() => {
-        setHoveredNodeId(null);
-    }, []);
+    const handleNodeHoverStart = useCallback((nodeId) => { setHoveredNodeId(nodeId); }, []);
+    const handleNodeHoverEnd = useCallback(() => { setHoveredNodeId(null); }, []);
 
     // --- Return State and Handlers ---
     return {
-        selectedBook, selectedChapter, selectedVerse,
-        viewMode, chapterList, verseList,
-        filteredConnectionData, isFiltering,
-        selectedNodeId, hoveredNodeId,
-        handleBookChange, handleChapterChange, handleVerseChange,
-        handleToggleView, handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd
+        selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
+        filteredConnectionData, isFiltering, selectedNodeId, hoveredNodeId,
+        handleBookChange, handleChapterChange, handleVerseChange, handleToggleView,
+        handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd
     };
 }
-
-// NO DUPLICATE FUNCTION DEFINITION HERE

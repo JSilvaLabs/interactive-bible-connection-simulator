@@ -1,7 +1,7 @@
-// app/page.js (MVP v8.0 - Fix JSX Structure for Loader)
+// app/page.js (MVP v8.1 - CORRECTED JSX Structure)
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react'; // Import React
+import React, { useState, useEffect, useCallback } from 'react';
 // Import custom hooks
 import { useBibleData } from '@/hooks/useBibleData';
 import { useVisualizationState } from '@/hooks/useVisualizationState';
@@ -13,7 +13,7 @@ import ViewToggle from '@/components/ViewToggle';
 import TextDisplayPanel from '@/components/TextDisplayPanel';
 import ReferenceSelector from '@/components/ReferenceSelector';
 import ReferenceListPanel from '@/components/ReferenceListPanel';
-// MetadataPanel import is removed
+// MetadataPanel removed
 
 export default function MainPage() {
     // --- Consume Custom Hooks ---
@@ -44,37 +44,23 @@ export default function MainPage() {
                 </h1>
                 <div id="controls-area" className="flex flex-wrap gap-2 md:gap-4 mb-3 items-center justify-center">
                     <ReferenceSelector
-                        bookList={bookList}
-                        chapterList={chapterList}
-                        verseList={verseList}
-                        selectedBook={selectedBook}
-                        selectedChapter={selectedChapter}
-                        selectedVerse={selectedVerse}
-                        onBookChange={handleBookChange}
-                        onChapterChange={handleChapterChange}
-                        onVerseChange={handleVerseChange}
-                        isDisabled={isLoadingData || isFiltering}
-                        viewMode={viewMode}
+                        bookList={bookList} chapterList={chapterList} verseList={verseList}
+                        selectedBook={selectedBook} selectedChapter={selectedChapter} selectedVerse={selectedVerse}
+                        onBookChange={handleBookChange} onChapterChange={handleChapterChange} onVerseChange={handleVerseChange}
+                        isDisabled={isLoadingData || isFiltering} viewMode={viewMode}
                     />
                     <ViewToggle
-                        currentView={viewMode}
-                        onToggle={handleToggleView}
+                        currentView={viewMode} onToggle={handleToggleView}
                         disabled={!selectedChapter || isFiltering || isLoadingData}
                     />
-                    <button
-                        onClick={triggerZoomReset}
-                        className="px-3 py-1 border rounded text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Reset diagram zoom and pan"
-                        disabled={isFiltering || !filteredConnectionData}
-                    >
-                        Reset Zoom
-                    </button>
+                    <button onClick={triggerZoomReset} /* ... Reset Button ... */ > Reset Zoom </button>
                 </div>
             </div>
 
             {/* Main Content Area */}
              <div className="flex flex-col lg:flex-row w-full max-w-screen-xl gap-3 flex-grow min-h-0 px-2 pb-1">
                 {/* Visualization Area */}
+                {/* CORRECTED STRUCTURE: Loader and Container are SIBLINGS */}
                 <div className="w-full lg:w-[calc(100%-340px)] h-[60%] lg:h-full border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1">
                      {/* Filtering Loader Overlay - Rendered conditionally on top */}
                      {isFiltering && (
@@ -82,45 +68,30 @@ export default function MainPage() {
                             <span className="text-white font-semibold text-lg animate-pulse">Loading...</span>
                         </div>
                      )}
-                     {/* Arc Diagram Container - Always rendered */}
+                     {/* Arc Diagram Container - Rendered independently */}
                     <ArcDiagramContainer
                         data={filteredConnectionData}
-                        // isLoading prop tells container to show its *own* internal placeholder if needed
                         isLoading={isFiltering || !selectedChapter}
                         width={dimensions.width}
                         height={dimensions.height}
                         onNodeSelect={handleNodeSelect}
                         onNodeHoverStart={handleNodeHoverStart}
                         onNodeHoverEnd={handleNodeHoverEnd}
-                        // resetZoomTrigger={resetZoomKey} // Pass if reset implemented in ArcDiagram
+                        resetZoomTrigger={resetZoomKey} // Pass the key down
                     />
                 </div> {/* End of Visualization Area div */}
 
-                {/* Info Panels Area - MetadataPanel REMOVED */}
+                {/* Info Panels Area */}
                 <div className="w-full lg:w-[340px] lg:max-w-[340px] flex-shrink-0 h-[40%] lg:h-full flex flex-col gap-3 lg:max-h-full overflow-hidden">
-                     {/* Text Panel takes up space */}
-                     <div className="flex-1 min-h-0">
-                        <TextDisplayPanel
-                            selectedNodeId={selectedNodeId}
-                            hoveredNodeId={hoveredNodeId}
-                            bibleData={bibleData}
-                            isLoadingBibleData={isLoadingData}
-                        />
-                     </div>
-                      {/* Reference List Panel takes up space */}
-                     <div className="flex-1 min-h-0">
-                        <ReferenceListPanel
-                             selectedNodeId={selectedNodeId}
-                             connectionData={filteredConnectionData}
-                             isLoadingConnections={isFiltering}
-                         />
-                     </div>
+                     {/* Panels - MetadataPanel is removed */}
+                     <div className="flex-1 min-h-0"> <TextDisplayPanel selectedNodeId={selectedNodeId} hoveredNodeId={hoveredNodeId} bibleData={bibleData} isLoadingBibleData={isLoadingData} /> </div>
+                     <div className="flex-1 min-h-0"> <ReferenceListPanel selectedNodeId={selectedNodeId} connectionData={filteredConnectionData} isLoadingConnections={isFiltering} /> </div>
                 </div>
             </div>
 
             {/* Footer Area */}
             <footer id="main-footer" className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 py-1">
-                MVP v8.0 | Developed by JSilvaLabs - Global Minister Education
+                MVP v8.1 | Developed by JSilvaLabs - Global Minister Education
             </footer>
         </main>
     );
