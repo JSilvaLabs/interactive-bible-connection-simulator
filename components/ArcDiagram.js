@@ -1,4 +1,4 @@
-// components/ArcDiagram.js (MVP v8.2 - Enhanced Checks for setupScales)
+// components/ArcDiagram.js (MVP v8.2 - Debugging Visibility)
 "use client";
 
 import React, { useEffect, useRef } from 'react';
@@ -6,29 +6,107 @@ import * as d3 from 'd3';
 
 // --- D3 Helper Functions ---
 function setupScales(nodes, width, height, nodeRadius) {
-    console.log(`[setupScales] Called with: nodes=${nodes?.length}, width=${width}, height=${height}, nodeRadius=${nodeRadius}`);
-    if (!nodes || nodes.length === 0 || !width || width <= 0 || !height || height <= 0 || !nodeRadius || nodeRadius <= 0) {
-        console.error("[setupScales] Invalid parameters received.");
-        return { yScale: d3.scalePoint(), colorScale: d3.scaleOrdinal(), axisXPosition: 0 }; // Return default object
-    }
-    try { // Add try-catch within the helper too
+    if (!nodes || nodes.length === 0 || !width || width <= 0 || !height || height <= 0 || !nodeRadius || nodeRadius <= 0) { return { yScale: d3.scalePoint(), colorScale: d3.scaleOrdinal(), axisXPosition: 0 }; }
+    try {
         const padding = Math.min(0.8, Math.max(0.1, 1 - nodes.length / (height / (nodeRadius * 4))));
         const yScale = d3.scalePoint().domain(nodes.map(d => d.id)).range([0, height]).padding(padding);
         const bookNames = Array.from(new Set(nodes.map(d => d.book || 'Unknown')));
         const colorScale = d3.scaleOrdinal(bookNames.length > 10 ? d3.schemeSpectral[Math.min(bookNames.length, 11)] : d3.schemeCategory10).domain(bookNames);
         const axisXPosition = 0;
-        // console.log("[setupScales] Scales calculated successfully.");
-        return { yScale, colorScale, axisXPosition }; // Ensure object is returned
-    } catch (error) {
-        console.error("[setupScales] Error during scale calculation:", error);
-        // Return default object on error
-        return { yScale: d3.scalePoint(), colorScale: d3.scaleOrdinal(), axisXPosition: 0 };
-    }
+        return { yScale, colorScale, axisXPosition };
+    } catch (error) { console.error("[setupScales] Error:", error); return { yScale: d3.scalePoint(), colorScale: d3.scaleOrdinal(), axisXPosition: 0 }; }
 }
-function calculateArcPath(d, yScale, axisXPosition) { /* ... (no changes) ... */ }
-function drawAndUpdateArcs(selection, links, yScale, colorScale, axisXPosition, nodeMap) { /* ... (no changes) ... */ }
-function drawAndUpdateNodes(selection, nodes, yScale, colorScale, nodeRadius, axisXPosition, showLabels, labelFontSize, labelXOffset, handlers, selectedNodeId) { /* ... (no changes) ... */ }
 
+function calculateArcPath(d, yScale, axisXPosition) {
+    const y1 = yScale(d.source); const y2 = yScale(d.target);
+    if (y1 === undefined || y2 === undefined) { console.warn(`[calcArcPath] Skip: Undefined y for ${d.source} (${y1}) or ${d.target} (${y2})`); return null; }
+    const radius = Math.abs(y2 - y1) / 2; if (radius <= 0) { /* console.warn(`[calcArcPath] Skip: Zero radius for ${d.source}->${d.target}`); */ return null; }
+    const sweepFlag = y1 < y2 ? 1 : 0;
+    const pathData = `M ${axisXPosition},${y1} A ${radius},${radius} 0 0,${sweepFlag} ${axisXPosition},${y2}`;
+    // if (Math.random() < 0.05) console.log(`[calcArcPath] ${d.source}->${d.target}: ${pathData}`); // Log sample paths
+    return pathData;
+}
+
+// Draws/Updates the arcs using the .join() pattern - Added Debug Styling
+function drawAndUpdateArcs(selection, links, yScale, colorScale, axisXPosition, nodeMap) {
+    console.log(`[drawArcs] Attempting to draw ${links?.length ?? 0} links.`);
+    const joinedArcs = selection
+        .attr("fill", "none") // Crucial for arcs
+        // --- DEBUG STYLING ---
+        .attr("stroke-opacity", 1) // Make visible
+        .attr("stroke-width", 1.5) // Make thicker
+        // --- END DEBUG ---
+        .selectAll("path.arc-path")
+        .data(links, d => `${d.source}-${d.target}`)
+        .join(
+            enter => enter.append("path")
+                         .attr("class", "arc-path")
+                         .attr("stroke", "blue") // TEMPORARY DEBUG COLOR
+                         .attr("d", d => calculateArcPath(d, yScale, axisXPosition)) // Calculate path
+                         .call(enter => enter.append("title").text(d => `${nodeMap.get(d.source)?.label} → ${nodeMap.get(d.target)?.label}`)), // Tooltip
+            update => update // Update existing arcs
+                         .attr("stroke", "orange") // TEMPORARY DEBUG COLOR FOR UPDATES
+                         .attr("d", d => calculateArcPath(d, yScale, axisXPosition)), // Recalculate path
+            exit => exit.remove() // Remove old arcs directly for now
+        );
+     console.log(`[drawArcs] Joined arcs selection size: ${joinedArcs.size()}`);
+}
+
+// Draws/Updates the nodes using the .join() pattern - Added Debug Styling
+function drawAndUpdateNodes(selection, nodes, yScale, colorScale, nodeRadius, axisXPosition, showLabels, labelFontSize, labelXOffset, handlers, selectedNodeId) {
+    console.log(`[drawNodes] Attempting to draw ${nodes?.length ?? 0} nodes.`);
+    const joinedNodes = selection
+        .selectAll("g.node-group")
+        .data(nodes, d => d.id)
+        .join(
+            enter => { // Create new node groups
+                const g = enter.append("g")
+                    .attr("class", "node-group")
+                    .attr("cursor", "pointer")
+                    .attr("transform", d => `translate(${axisXPosition},${yScale(d.id) ?? 0})`);
+
+                // Add circle - TEMPORARY DEBUG STYLING
+                g.append("circle")
+                    .attr("r", nodeRadius)
+                    .attr("cx", 0).attr("cy", 0)
+                    .attr("fill", "red") // DEBUG
+                    .style("fill-opacity", 1) // DEBUG
+                    .style("stroke", "black") // DEBUG
+                    .style("stroke-width", 1) // DEBUG
+                    .append("title").text(d => d.label);
+
+                // Add text element (visibility controlled by display attribute)
+                g.append("text")
+                    .attr("class", "node-label") // Basic class
+                    .attr("fill", "black") // DEBUG
+                    .style("font-size", labelFontSize)
+                    .attr("x", labelXOffset)
+                    .attr("dy", "0.35em").attr("text-anchor", "end")
+                    .style("pointer-events", "none")
+                    .attr("display", showLabels ? null : "none")
+                    .text(d => d.label);
+
+                 g.on("mouseover", handlers.mouseover).on("mouseout", handlers.mouseout).on("click", handlers.click);
+                 return g;
+            },
+            update => { // Update existing node groups
+                update.transition("updatePos").duration(150).attr("transform", d => `translate(${axisXPosition},${yScale(d.id) ?? 0})`);
+                update.select("circle") // Update circle
+                      .transition("updateCircle").duration(150)
+                      .attr("r", nodeRadius)
+                      .attr("fill", "purple"); // TEMPORARY DEBUG UPDATE COLOR
+                update.select("circle title").text(d => d.label);
+                 // Update label
+                 const labelUpdate = update.selectAll("text.node-label").data(d => showLabels ? [d] : []);
+                 labelUpdate.enter().append("text").attr("class", "node-label ...").style("pointer-events", "none").attr("dy", "0.35em").attr("text-anchor", "end");
+                 labelUpdate.merge(labelUpdate.enter()).attr("display", showLabels ? null : "none").style("font-size", labelFontSize).attr("x", labelXOffset).text(d => d.label);
+                 labelUpdate.exit().remove();
+                 return update;
+            },
+            exit => exit.remove() // Remove old nodes directly
+        );
+    console.log(`[drawNodes] Joined nodes selection size: ${joinedNodes.size()}`);
+}
 
 // --- Main Component ---
 function ArcDiagram({ svgRef, data, width, height, selectedNodeId, onNodeSelect, onNodeHoverStart, onNodeHoverEnd, resetZoomTrigger }) {
@@ -44,75 +122,62 @@ function ArcDiagram({ svgRef, data, width, height, selectedNodeId, onNodeSelect,
     if (!data || !data.nodes || data.nodes.length === 0 || !width || width <= 10 || !height || height <= 50) {
         console.log("[ArcDiagram Hook] Invalid data or dimensions, clearing."); zoomGroup.selectAll("*").remove(); return;
     }
-    // console.log(`[ArcDiagram Hook] Rendering: ${data.nodes.length} nodes, ${data.links.length} links. Dims: ${width}x${height}`);
+    console.log(`[ArcDiagram Hook] Rendering: ${data.nodes.length} nodes, ${data.links.length} links. Dims: ${width}x${height}`);
+
+    // Clear previous content before drawing
+    zoomGroup.selectAll("*").remove();
 
     // --- Build Node Map & Params ---
     nodeMap.clear(); data.nodes.forEach((node, index) => nodeMap.set(node.id, { index: index, ...node }));
-    // ... (adaptive parameter calculations: nodeRadius, showLabels, etc.) ...
-     const nodeRadius = /*...*/ 8; const labelFontSize = /*...*/ '12px'; const labelXOffset = -(nodeRadius + 7); const showLabels = width > 90; const axisXPosition = 0;
+    const nodeCount = data.nodes.length; const minLabelWidthThreshold = 90; const maxNodesForLabels = 120; const nodeDensityThreshold = 0.25; const calculatedNodeDensity = nodeCount / height; const showLabels = width > minLabelWidthThreshold && nodeCount <= maxNodesForLabels && calculatedNodeDensity < nodeDensityThreshold; const isDense = calculatedNodeDensity > 0.18; const nodeRadius = height < 350 ? 6 : (isDense ? 7 : 8); const hoverRadiusIncrease = 3; const labelFontSize = height < 350 ? '10px' : (isDense ? '11px' : '12px'); const labelXOffset = -(nodeRadius + 7);
 
     // --- Setup Scales ---
-    console.log("[ArcDiagram Hook] Preparing to call setupScales...");
-    if (!data.nodes || !width || !height || !nodeRadius) {
-        console.error("[ArcDiagram Hook] FATAL: Missing valid parameters BEFORE calling setupScales.");
-        return; // Exit if essential parameters are missing
-    }
     const scales = setupScales(data.nodes, width, height, nodeRadius);
-    console.log("[ArcDiagram Hook] Result from setupScales:", scales); // Log the direct result
-
-    // --- CRITICAL CHECK - More Explicit ---
+    console.log("[ArcDiagram Hook] Result from setupScales:", scales);
     if (typeof scales === 'undefined' || scales === null || typeof scales.yScale === 'undefined') {
-        console.error("[ArcDiagram Hook] FATAL: setupScales returned undefined or invalid object. Scales:", scales);
-        return; // Stop execution if scales is invalid
+        console.error("[ArcDiagram Hook] FATAL: setupScales returned invalid result. Scales:", scales); return;
     }
-    console.log("[ArcDiagram Hook] setupScales check passed. Destructuring...");
-    // --- End Critical Check ---
-
-    const { yScale, colorScale } = scales; // Destructure only after validation
+    const { yScale, colorScale, axisXPosition } = scales;
 
     // --- Prepare Containers ---
-    let arcsContainer = zoomGroup.selectAll("g.arcs-container").data([null]).join("g").attr("class", "arcs-container");
-    let nodesContainer = zoomGroup.selectAll("g.nodes-container").data([null]).join("g").attr("class", "nodes-container");
+    const arcsContainer = zoomGroup.append("g").attr("class", "arcs-container");
+    const nodesContainer = zoomGroup.append("g").attr("class", "nodes-container");
 
     // --- Define Event Handlers ---
-    const handlers = { /* ... handlers using valid scales, nodeRadius etc. ... */ };
-     handlers.mouseover = (event, d) => { /*...*/ }; handlers.mouseout = (event, d) => { /*...*/ }; handlers.click = (event, d) => { /*...*/ };
+     const handlers = { /* ... handlers using nodeRadius, hoverRadiusIncrease, arcsContainer etc ... */
+          mouseover: (event, d) => { if (onNodeHoverStart) onNodeHoverStart(d.id); d3.select(event.currentTarget).select('circle').attr('r', nodeRadius + hoverRadiusIncrease); /* Simple hover */ },
+          mouseout: (event, d) => { if (onNodeHoverEnd) onNodeHoverEnd(); d3.select(event.currentTarget).select('circle').attr('r', nodeRadius); /* Simple reset */ },
+          click: (event, d) => { if (onNodeSelect) onNodeSelect(d.id); event.stopPropagation(); }
+      };
+     // --- Simplified handlers for initial debugging ---
 
-    // --- Draw Elements ---
+    // --- Draw Elements using Helpers ---
     try {
         console.log("[ArcDiagram Hook] Calling drawAndUpdateArcs/Nodes...");
         drawAndUpdateArcs(arcsContainer, data.links, yScale, colorScale, axisXPosition, nodeMap);
         drawAndUpdateNodes(nodesContainer, data.nodes, yScale, colorScale, nodeRadius, axisXPosition, showLabels, labelFontSize, labelXOffset, handlers, selectedNodeId);
-        console.log("[ArcDiagram Hook] Drawing functions called successfully.");
-    } catch (error) {
-        console.error("[ArcDiagram Hook] Error during D3 drawing functions:", error);
-    }
-
+        console.log("[ArcDiagram Hook] Drawing functions potentially finished.");
+    } catch (error) { console.error("[ArcDiagram Hook] Error during D3 drawing functions:", error); }
 
     // --- D3 Zoom Setup ---
-    // ... (Zoom setup logic as before) ...
+    // ... (Keep zoom setup logic as before, ensure it's attached to svgRef.current) ...
     const handleZoom = (event) => { zoomGroup.attr('transform', event.transform); };
     if (!zoomBehaviorRef.current) { zoomBehaviorRef.current = d3.zoom().scaleExtent([0.1, 10]).on('zoom', handleZoom); }
-    if (svgRef.current) { rootSvg.call(zoomBehaviorRef.current).on("dblclick.zoom", null); } else { console.error("ArcDiagram: svgRef missing for zoom attach."); }
+    if (svgRef.current) { rootSvg.call(zoomBehaviorRef.current).on("dblclick.zoom", null); }
 
     // Cleanup
     return () => { if (svgRef.current) { d3.select(svgRef.current).on('.zoom', null); } };
 
-  }, [data, width, height, selectedNodeId, onNodeSelect, onNodeHoverStart, onNodeHoverEnd, svgRef]); // Removed resetZoomTrigger dependency for now to simplify
+  }, [data, width, height, selectedNodeId, onNodeSelect, onNodeHoverStart, onNodeHoverEnd, svgRef]); // Main dependencies
+
 
   // --- Effect for Zoom Reset ---
-   useEffect(() => {
-     if (resetZoomTrigger > 0) {
-         if (svgRef?.current && zoomBehaviorRef.current) {
-             console.log("ArcDiagram: Resetting zoom via trigger", resetZoomTrigger);
-             d3.select(svgRef.current).transition("resetZoom").duration(500)
-               .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
-         }
-     }
-   // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [resetZoomTrigger, svgRef]); // Only depend on trigger and ref
+   useEffect(() => { /* ... (Zoom reset logic as before) ... */
+     if (resetZoomTrigger > 0) { if (svgRef?.current && zoomBehaviorRef.current) { d3.select(svgRef.current).transition("resetZoom").duration(500).call(zoomBehaviorRef.current.transform, d3.zoomIdentity); } }
+   }, [resetZoomTrigger, svgRef]); // Dependencies for reset effect
 
 
+  // Return the group element D3 will manage
   return <g ref={zoomGroupRef}></g>;
 }
 
