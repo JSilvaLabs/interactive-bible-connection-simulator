@@ -1,8 +1,8 @@
-// hooks/useBibleData.js (Correct MVP v6.0 Version)
+// hooks/useBibleData.js (MVP v9.0)
 "use client";
 
 import { useState, useEffect } from 'react';
-// Import the actual data loading functions
+// Import potentially optimized dataService functions
 import { loadBibleText, loadAllReferences, getBooks } from '@/utils/dataService';
 
 export function useBibleData() {
@@ -15,24 +15,19 @@ export function useBibleData() {
     useEffect(() => {
         let isMounted = true;
         console.log("useBibleData: Initiating data load...");
-        setIsLoadingData(true);
-        setError(null);
-        setBookList([]); // Clear previous list
+        setIsLoadingData(true); setError(null); setBookList([]);
 
-        // Use setTimeout to allow initial render before potentially heavy data load
-        const timer = setTimeout(() => {
+        const timer = setTimeout(() => { // Ensure initial render happens first
             if (!isMounted) return;
             try {
-                // Call the actual load functions which might do internal caching/processing
+                // These might now trigger internal pre-processing in dataService
                 const loadedBibleData = loadBibleText();
                 const loadedReferences = loadAllReferences();
 
-                if (!isMounted) return; // Check again after loading
+                if (!isMounted) return;
                 setBibleData(loadedBibleData);
                 setAllReferencesData(loadedReferences);
-
-                // Derive book list from the loaded Bible data
-                const books = getBooks(loadedBibleData);
+                const books = getBooks(loadedBibleData); // Uses potentially optimized dataService
                 setBookList(books);
                 console.log("useBibleData: Data loaded successfully.");
 
@@ -42,13 +37,10 @@ export function useBibleData() {
             } finally {
                 if (isMounted) setIsLoadingData(false);
             }
-        }, 10); // Small delay
+        }, 10);
 
-         return () => {
-             isMounted = false; // Prevent state updates on unmount
-             clearTimeout(timer);
-         };
-    }, []); // Empty dependency array means this runs only once on mount
+         return () => { isMounted = false; clearTimeout(timer); };
+    }, []);
 
     return { bibleData, allReferencesData, bookList, isLoadingData, error };
 }

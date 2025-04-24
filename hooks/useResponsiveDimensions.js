@@ -1,5 +1,5 @@
-// hooks/useResponsiveDimensions.js
-"use client"; // Directive required for hooks using useState/useEffect/window
+// hooks/useResponsiveDimensions.js (No changes for MVP v9.0)
+"use client";
 
 import { useState, useEffect } from 'react';
 
@@ -11,7 +11,6 @@ export function useResponsiveDimensions(
     initialWidth = 600, // Default initial width
     initialHeight = 450 // Default initial height
 ) {
-    // Initialize state with potentially server-safe defaults or initial values
     const [dimensions, setDimensions] = useState({ width: initialWidth, height: initialHeight });
 
     useEffect(() => {
@@ -20,10 +19,9 @@ export function useResponsiveDimensions(
             const handleResize = () => {
                 const windowWidth = window.innerWidth;
                 const windowHeight = window.innerHeight;
-                const isLargeScreen = windowWidth >= 1024; // lg breakpoint (Tailwind default)
+                const isLargeScreen = windowWidth >= 1024; // lg breakpoint
 
                 // Attempt to get actual heights of surrounding elements for more accuracy
-                // Fallback to estimates if elements aren't found immediately
                 const headerElement = document.getElementById('main-header');
                 const footerElement = document.getElementById('main-footer');
                 const controlsElement = document.getElementById('controls-area');
@@ -32,9 +30,9 @@ export function useResponsiveDimensions(
                 const headerHeight = headerElement?.offsetHeight || 60;
                 const footerHeight = footerElement?.offsetHeight || 20;
                 const controlsHeight = controlsElement?.offsetHeight || 50;
-                const verticalPadding = 24; // Approximating p-3 top/bottom
-                const horizontalPadding = 24; // Approximating px-3 left/right
-                const gap = 12; // gap-3
+                const verticalPadding = 24;
+                const horizontalPadding = 24;
+                const gap = 12;
 
                 // Calculate height available for the main content row/column
                 const availableHeight = windowHeight - headerHeight - footerHeight - controlsHeight - verticalPadding - gap;
@@ -42,36 +40,28 @@ export function useResponsiveDimensions(
                 let vizWidth, vizHeight;
 
                 if (isLargeScreen) {
-                    // --- Side-by-side layout (Large Screens) ---
-                    // Estimate fixed width of info panels column
-                    const infoPanelWidth = 340; // Width defined in MainPage layout
-                    // Calculate width available for visualization container
+                    // Side-by-side layout
+                    const infoPanelWidth = 340; // Defined in MainPage layout
                     const availableVizWidth = windowWidth - infoPanelWidth - gap - horizontalPadding;
-                    // Use calculated available width, ensuring minimum
                     vizWidth = Math.max(300, availableVizWidth);
-                    // Use calculated available height, ensuring minimum
                     vizHeight = Math.max(300, availableHeight);
                 } else {
-                    // --- Stacked layout (Small Screens) ---
-                    // Visualization takes full available width
+                    // Stacked layout (mobile)
                     const availableVizWidth = windowWidth - horizontalPadding;
                     vizWidth = Math.max(300, availableVizWidth);
-                    // Estimate minimum height needed for info panels below
-                    const minPanelStackHeight = 300; // Adjust as needed
-                    // Allocate remaining available height to visualization, ensuring minimum
-                    vizHeight = Math.max(250, availableHeight - minPanelStackHeight - gap); // Min height for viz
+                    const minPanelStackHeight = 300;
+                    vizHeight = Math.max(250, availableHeight - minPanelStackHeight - gap);
                 }
 
-                // Optional: Clamp dimensions to reasonable maximums
+                // Optional: Clamp dimensions
                 vizWidth = Math.min(vizWidth, 2000);
                 vizHeight = Math.min(vizHeight, 1500);
 
-                // Update state only if dimensions actually changed to avoid unnecessary re-renders
+                // Update state only if dimensions actually changed
                 setDimensions(prevDims => {
                     if (prevDims.width === vizWidth && prevDims.height === vizHeight) {
                         return prevDims;
                     }
-                    // console.log("Resized dimensions:", { width: vizWidth, height: vizHeight }); // Debugging resize
                     return { width: vizWidth, height: vizHeight };
                 });
             };
@@ -83,10 +73,8 @@ export function useResponsiveDimensions(
             let resizeTimer;
             const debouncedHandler = () => {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(handleResize, 150); // Delay recalculation slightly
+                resizeTimer = setTimeout(handleResize, 150);
             };
-
-            // Add event listener
             window.addEventListener('resize', debouncedHandler);
 
             // Cleanup listener on component unmount
@@ -95,7 +83,7 @@ export function useResponsiveDimensions(
                  window.removeEventListener('resize', debouncedHandler);
             };
         }
-    }, []); // Empty dependency array ensures this effect runs only once on the client after mount
+    }, []); // Empty dependency array
 
     return { dimensions };
 }
