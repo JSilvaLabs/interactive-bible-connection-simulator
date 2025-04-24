@@ -1,5 +1,6 @@
 // utils/dataService.js (MVP v8.2 - Debug getBooks)
 
+import { useState, useEffect, useCallback } from 'react';
 import bibleDataRaw from '@/data/BSB.json';
 import allReferencesRaw from '@/data/references.json';
 import { BIBLE_BOOK_ORDER_MAP, getBookSortIndex } from '@/utils/canonicalOrder';
