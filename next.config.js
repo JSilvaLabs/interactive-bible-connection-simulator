@@ -21,14 +21,11 @@ if (isGithubActions) {
    basePath = `/${repoName}`;
 }
 
-
 const nextConfig = {
   output: 'export',
-  basePath: basePath,     // Use the variable
-  assetPrefix: assetPrefix, // Use the variable
-  images: {
-    unoptimized: true,
-  },
+  basePath: `/${repoName}`,     // Should be /interactive-bible-connection-simulator
+  assetPrefix: `/${repoName}/`, // Should be /interactive-bible-connection-simulator
+  images: { unoptimized: true, },
 };
 
 module.exports = nextConfig;
