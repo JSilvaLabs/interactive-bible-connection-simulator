@@ -3,9 +3,9 @@
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
 // Import custom hooks
-import { useBibleData } from '@/hooks/useBibleData';
-import { useVisualizationState } from '@/hooks/useVisualizationState';
-import { useResponsiveDimensions } from '@/hooks/useResponsiveDimensions';
+import { useBibleData } from '@/hooks/useBibleData.js';
+import { useVisualizationState } from '@/hooks/useVisualizationState.js';
+import { useResponsiveDimensions } from '@/hooks/useResponsiveDimensions.js';
 
 // Import UI Components
 import ArcDiagramContainer from '@/components/ArcDiagramContainer';
