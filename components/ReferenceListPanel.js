@@ -1,15 +1,15 @@
-// components/ReferenceListPanel.js (MVP v8.0 Update - Title Formatting)
+// components/ReferenceListPanel.js (MRP v1.1 - Polished)
 "use client";
 
 import React from 'react';
-// Import helpers needed for sorting target IDs AND getting metadata for title
-import { parseReferenceId, normalizeBookNameForId, getNodeMetadata } from '@/utils/dataService';
+// Import helpers needed
+import { parseReferenceId, normalizeBookNameForId, normalizeBookNameForText, getNodeMetadata } from '@/utils/dataService';
 import { getBookSortIndex } from '@/utils/canonicalOrder';
 
 /**
  * Component to display a list of outgoing cross-references
- * for a selected node (chapter or verse), sorted canonically,
- * with updated title formatting.
+ * for a selected node (chapter or verse), sorted canonically.
+ * MRP version includes polished UI, states, and accessibility.
  */
 function ReferenceListPanel({
     selectedNodeId,       // The ID of the node selected in the diagram
@@ -21,81 +21,108 @@ function ReferenceListPanel({
     let displayTitle = "Connections List"; // Default title
     let message = null;
     let connectionCount = 0;
+    let listContent = null; // To hold the list or message JSX
 
+    // --- Determine Panel State and Content ---
     if (isLoadingConnections) {
-        displayTitle = "Loading Connections...";
-        message = "Filtering connections based on selection...";
-    } else if (!selectedNodeId) {
-        // Keep default title
-        message = "Select a node on the diagram to see its outgoing connections.";
-    } else if (connectionData && connectionData.links) {
-         // Format title based on selectedNodeId type
-         const metadata = getNodeMetadata(selectedNodeId);
-         if (metadata && metadata.book) {
-             if (metadata.verse !== null) { // Specific Verse
-                 // MVP v8.0 Format: Connections from Book #:# (#)
-                 displayTitle = `Connections from ${metadata.book} ${metadata.chapter}:${metadata.verse}`;
-             } else { // Chapter level ID
-                 // MVP v8.0 Format: Connections from Book # (#)
-                 displayTitle = `Connections from ${metadata.book} ${metadata.chapter}`;
-             }
-         } else {
-              displayTitle = `Connections from ${selectedNodeId}`; // Fallback
+        // State: Loading connections for a selected node
+        const metadata = getNodeMetadata(selectedNodeId); // Get metadata even while loading
+        let baseTitle = selectedNodeId || "..."; // Use ID or placeholder
+         if (metadata?.book && metadata.book !== 'Unknown') {
+             baseTitle = metadata.verse !== null
+                 ? `${metadata.book} ${metadata.chapter}:${metadata.verse}`
+                 : `${metadata.book} ${metadata.chapter}`;
          }
+        displayTitle = `Connections from ${baseTitle} (...)`; // Indicate loading count
+        listContent = (
+            <div className="flex justify-center items-center h-full text-gray-500 dark:text-gray-400 animate-pulse p-4 text-center text-sm">
+                Loading connections...
+            </div>
+        );
+    } else if (!selectedNodeId) {
+        // State: No node selected
+        displayTitle = "Connections List";
+        message = "Select a node on the diagram axis (like 'Genesis 1' or 'Genesis 1:1') to see its outgoing connections listed here.";
+        listContent = <p className="text-sm text-gray-500 dark:text-gray-400 p-2 italic">{message}</p>;
+    } else if (connectionData?.links) {
+        // State: Data available, filter and display
+        const metadata = getNodeMetadata(selectedNodeId);
+         let baseTitle = selectedNodeId;
+         if (metadata?.book && metadata.book !== 'Unknown') {
+             baseTitle = metadata.verse !== null
+                 ? `${metadata.book} ${metadata.chapter}:${metadata.verse}`
+                 : `${metadata.book} ${metadata.chapter}`;
+         }
+         displayTitle = `Connections from ${baseTitle}`;
 
-        // Filter and sort references
-        references = connectionData.links
-            .filter(link => link.source === selectedNodeId)
-            .sort((a, b) => { /* ... Canonical sort logic from v6.1 ... */
-                const parsedA = parseReferenceId(a.target); const parsedB = parseReferenceId(b.target);
-                if (!parsedA && !parsedB) return a.target.localeCompare(b.target); if (!parsedA) return 1; if (!parsedB) return -1;
-                const bookA = normalizeBookNameForId(parsedA.book); const bookB = normalizeBookNameForId(parsedB.book);
-                const indexA = getBookSortIndex(bookA); const indexB = getBookSortIndex(b.book);
-                if (indexA !== indexB) return indexA - indexB;
-                if (parsedA.chapter !== parsedB.chapter) return parsedA.chapter - parsedB.chapter;
-                const verseA = parsedA.verse === null ? 0 : parsedA.verse; const verseB = parsedB.verse === null ? 0 : parsedB.verse;
-                if (verseA !== verseB) return verseA - verseB; return a.target.localeCompare(b.target);
-             })
-            .map(link => ({ target: link.target, value: link.value }));
-
-         connectionCount = references.length; // Get count after filtering
-         displayTitle += ` (${connectionCount})`; // Add count to title
+        const filteredLinks = connectionData.links.filter(link => link && link.source === selectedNodeId);
+        connectionCount = filteredLinks.length;
+        displayTitle += ` (${connectionCount})`; // Add count
 
         if (connectionCount === 0) {
-            message = "No outgoing connections found for this node in the current filtered view.";
+            message = "No outgoing connections found for this specific selection in the current view.";
+            listContent = <p className="text-sm text-gray-500 dark:text-gray-400 p-2 italic">{message}</p>;
+        } else {
+            references = filteredLinks
+                .sort((a, b) => { /* ... Robust sort logic from v1.0.1 ... */
+                    const targetA = a?.target || ''; const targetB = b?.target || '';
+                    const parsedA = parseReferenceId(targetA); const parsedB = parseReferenceId(targetB);
+                    if (!parsedA && !parsedB) return targetA.localeCompare(targetB); if (!parsedA) return 1; if (!parsedB) return -1;
+                    const bookA = normalizeBookNameForId(parsedA.book); const bookB = normalizeBookNameForId(parsedB.book);
+                    const indexA = getBookSortIndex(bookA); const indexB = getBookSortIndex(bookB);
+                    if (indexA !== indexB) return indexA - indexB;
+                    const chapterA = typeof parsedA.chapter === 'number' ? parsedA.chapter : Infinity; const chapterB = typeof parsedB.chapter === 'number' ? parsedB.chapter : Infinity;
+                    if (chapterA !== chapterB) return chapterA - chapterB;
+                    const verseA = parsedA.verse === null ? 0 : parsedA.verse; const verseB = parsedB.verse === null ? 0 : parsedB.verse;
+                    if (verseA !== verseB) return verseA - verseB;
+                    return targetA.localeCompare(targetB);
+                 })
+                .map(link => ({ target: link.target, value: link.value || 1 })); // Use value if available
+
+             listContent = (
+                 <ul className="list-none p-0 m-0 divide-y divide-gray-200 dark:divide-gray-700">
+                    {references.map((ref, index) => {
+                        const key = `${selectedNodeId}-to-${ref.target}-${index}`;
+                        const targetMeta = getNodeMetadata(ref.target);
+                        // Prefer formatted label, fallback to raw ID
+                        const targetLabel = (targetMeta?.book !== 'Unknown' && targetMeta?.label)
+                            ? targetMeta.label
+                            : ref.target;
+
+                        return (
+                            <li key={key} className="py-1.5 px-1 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100 text-sm" >
+                                <span className="font-mono text-gray-800 dark:text-gray-200 break-words" title={`Connection Target ID: ${ref.target}`}>
+                                    → {targetLabel}
+                                </span>
+                                {/* Optionally display value for chapter view? */}
+                                {/* {ref.value > 1 && <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({ref.value} links)</span>} */}
+                            </li>
+                        );
+                    })}
+                </ul>
+             );
         }
     } else if (selectedNodeId) {
-        // Handle case where node is selected but connection data is null (e.g., during initial filtering)
-        const metadata = getNodeMetadata(selectedNodeId);
-         if (metadata && metadata.book) { // Format title even if data is loading
-             displayTitle = `Connections from ${metadata.verse !== null ? `${metadata.book} ${metadata.chapter}:${metadata.verse}` : `${metadata.book} ${metadata.chapter}`}`;
-         } else { displayTitle = `Connections from ${selectedNodeId}`; }
-         displayTitle += ` (...)`; // Indicate count is pending
-        message = "Connection data not available or still loading...";
+         // State: Node selected, but connectionData is unexpectedly null/missing links
+         const metadata = getNodeMetadata(selectedNodeId);
+          let baseTitle = selectedNodeId;
+          if (metadata?.book && metadata.book !== 'Unknown') { baseTitle = metadata.verse !== null ? `${metadata.book} ${metadata.chapter}:${metadata.verse}` : `${metadata.book} ${metadata.chapter}`; }
+          displayTitle = `Connections from ${baseTitle} (?)`; // Indicate missing data
+          message = "Connection data is currently unavailable for this selection.";
+          listContent = <p className="text-sm text-red-500 dark:text-red-400 p-2 italic">{message}</p>; // Use error color
     }
 
+
+    // --- Render ---
     return (
-        <div className="p-4 border border-gray-300 dark:border-gray-700 rounded-lg h-full overflow-hidden flex flex-col bg-gray-100 dark:bg-gray-800 shadow-inner reference-list">
+        <div className="p-4 border border-gray-300 dark:border-gray-700 rounded-lg h-full overflow-hidden flex flex-col bg-white dark:bg-gray-800 shadow-inner reference-list-panel">
              {/* Sticky Header */}
-            <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-gray-100 dark:bg-gray-800 z-10 flex-shrink-0 truncate" title={displayTitle}>
+            <h2 className="text-lg font-semibold mb-3 pb-2 border-b border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 sticky top-0 bg-white dark:bg-gray-800 z-10 flex-shrink-0 truncate px-1" title={displayTitle}>
                 {displayTitle}
-                {/* Count is now part of the title */}
             </h2>
              {/* Scrollable Content Area */}
-            <div className="overflow-y-auto flex-grow custom-scrollbar">
-                {message ? (
-                     <p className="text-sm text-gray-500 dark:text-gray-400 p-1 italic">{message}</p>
-                ) : (
-                    <ul className="list-none p-0 m-0 divide-y divide-gray-200 dark:divide-gray-700">
-                        {references.map((ref, index) => (
-                            <li key={`${ref.target}-${index}-${ref.value}`} className="text-sm py-1.5 px-1 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100">
-                                <span className="font-mono text-gray-800 dark:text-gray-200">→ {ref.target}</span>
-                                {/* Value is likely 1 (connection count) */}
-                                {/* <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({ref.value})</span> */}
-                            </li>
-                        ))}
-                    </ul>
-                )}
+            <div className="overflow-y-auto flex-grow custom-scrollbar px-1 pb-1">
+                {listContent} {/* Render the determined list or message */}
             </div>
         </div>
     );
