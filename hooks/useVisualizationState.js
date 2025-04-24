@@ -1,15 +1,16 @@
-// hooks/useVisualizationState.js (MVP v8.2 - Robust Default Selection)
+// hooks/useVisualizationState.js (MVP v8.2 - Duplicate Import Removed)
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 // Import necessary functions from dataService
+// Ensure ALL needed functions, including normalizers used in handlers, are listed here ONCE.
 import {
     getConnectionsFor,
     getChapters,
-    getBooks, // Needed for default selection
+    getBooks,
     getVersesForChapter,
-    normalizeBookNameForId, // Needed for default node ID
-    normalizeBookNameForText // Potentially needed by getVersesForChapter if not imported there
+    normalizeBookNameForId, // Needed for constructing node IDs in handlers/effects
+    // normalizeBookNameForText // Only needed if using directly in this hook (currently not)
 } from '@/utils/dataService';
 
 /**
@@ -37,50 +38,35 @@ export function useVisualizationState(bibleData, allReferencesData) {
 
         // Set default only if bibleData is loaded/valid and no book/chapter is selected yet
         if (bibleData && bibleData.books && bibleData.books.length > 0 && !selectedBook && !selectedChapter) {
-            console.log("[Default Effect] Conditions met (bibleData valid, no selection), attempting to set default...");
+            // console.log("[Default Effect] Conditions met, attempting to set default...");
             try {
-                const books = getBooks(bibleData); // Call getBooks now that bibleData is confirmed valid
-                console.log("[Default Effect] getBooks result (first 5):", books?.slice(0,5));
+                const books = getBooks(bibleData); // Uses imported function
+                // console.log("[Default Effect] getBooks result (first 5):", books?.slice(0,5));
 
-                if (books && books.length > 0) { // Check if getBooks returned a valid array
+                if (books && books.length > 0) {
                     const defaultBook = "Genesis";
                     const defaultChapter = 5;
-
-                    // Check if default book exists in the derived list (case-sensitive check might be needed depending on getBooks)
-                    const canonicalDefaultBook = normalizeBookNameForText(defaultBook); // Ensure using canonical name for checks/gets
-                    if (books.includes(canonicalDefaultBook)) {
-                        const defaultChapters = getChapters(bibleData, canonicalDefaultBook); // Use canonical name
-                        console.log(`[Default Effect] Chapters for ${canonicalDefaultBook}:`, defaultChapters);
-
+                    // Check using includes (assumes getBooks returns names matching bibleData/normalizeBookNameForText)
+                    if (books.includes(defaultBook)) {
+                        const defaultChapters = getChapters(bibleData, defaultBook); // Uses imported function
+                        // console.log(`[Default Effect] Chapters for ${defaultBook}:`, defaultChapters);
                         if (defaultChapters && defaultChapters.includes(defaultChapter)) {
-                            console.log(`[Default Effect] Setting state: Book=${canonicalDefaultBook}, Chapter=${defaultChapter}`);
-                            setSelectedBook(canonicalDefaultBook); // Set canonical name
+                            // --- Set State ---
+                            setSelectedBook(defaultBook);
                             setSelectedChapter(defaultChapter);
                             setChapterList(defaultChapters);
-                            const defaultVerses = getVersesForChapter(bibleData, canonicalDefaultBook, defaultChapter);
+                            const defaultVerses = getVersesForChapter(bibleData, defaultBook, defaultChapter); // Uses imported function
                             setVerseList(defaultVerses);
-                            // Set default selected node ID using ID normalization
-                            const defaultNodeId = `${normalizeBookNameForId(canonicalDefaultBook)}${defaultChapter}`;
+                            // Set default selected node ID using imported normalizer
+                            const defaultNodeId = `${normalizeBookNameForId(defaultBook)}${defaultChapter}`;
                             setSelectedNodeId(defaultNodeId);
-                            console.log(`[Default Effect] Default state SET. Node: ${defaultNodeId}, View: ${viewMode}`);
-                        } else {
-                            console.warn(`[Default Effect] Could not find default chapter ${defaultChapter} in ${canonicalDefaultBook}. Chapters available:`, defaultChapters);
-                        }
-                    } else {
-                        console.warn(`[Default Effect] Default book ${canonicalDefaultBook} not found in derived book list:`, books);
-                    }
-                } else {
-                     console.warn("[Default Effect] getBooks returned empty or invalid list.");
-                }
-            } catch (e) {
-                console.error("[Default Effect] Error during default selection logic:", e);
-            }
-        } else {
-             // console.log("[Default Effect] Conditions NOT met, skipping default set.");
+                            console.log(`useVisState: Set default selection: ${defaultBook} ${defaultChapter}, Node: ${defaultNodeId}, View: ${viewMode}`);
+                        } else { console.warn(`[Default Effect] Could not find default chapter ${defaultChapter} in ${defaultBook}`); }
+                    } else { console.warn(`[Default Effect] Default book ${defaultBook} not found in list.`); }
+                } else { console.warn("[Default Effect] getBooks returned empty list."); }
+            } catch (e) { console.error("[Default Effect] Error during default selection logic:", e); }
         }
-        // Depend only on bibleData. This effect should run once when bibleData is loaded.
-        // Subsequent selections are handled by user interaction callbacks.
-    }, [bibleData]); // Dependency on bibleData ensures it runs when data is ready
+    }, [bibleData]); // Depend only on bibleData
 
 
     // --- Effect to Update Filtered Data ---
@@ -88,13 +74,10 @@ export function useVisualizationState(bibleData, allReferencesData) {
         let isMounted = true;
         if (selectedBook && selectedChapter && allReferencesData) {
             setIsFiltering(true); setFilterError(null); setHoveredNodeId(null);
-            // Reset node ID only if the filter params change, not just on any render
-            // setSelectedNodeId(null); // Moved reset to handlers
-
             requestAnimationFrame(() => {
                 if (!isMounted) return;
                 try {
-                    const filteredData = getConnectionsFor(allReferencesData, selectedBook, selectedChapter, viewMode);
+                    const filteredData = getConnectionsFor(allReferencesData, selectedBook, selectedChapter, viewMode); // Uses imported function
                      if (isMounted) setFilteredConnectionData(filteredData);
                 } catch (err) {
                     console.error("useVisualizationState: Filtering failed:", err);
@@ -107,41 +90,42 @@ export function useVisualizationState(bibleData, allReferencesData) {
              if (isMounted) { setFilteredConnectionData(null); setIsFiltering(false); setFilterError(null); }
         }
         return () => { isMounted = false; };
-    }, [selectedBook, selectedChapter, viewMode, allReferencesData]); // Correct dependencies
+    }, [selectedBook, selectedChapter, viewMode, allReferencesData]);
 
     // --- Memoized Event Handlers ---
     const handleBookChange = useCallback((bookName) => {
         setSelectedBook(bookName);
         setSelectedChapter(null); setSelectedVerse(null);
         setFilteredConnectionData(null); setFilterError(null);
-        setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []);
+        setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []); // Uses imported getChapters
         setVerseList([]);
-        setSelectedNodeId(null); // Reset selection
+        setSelectedNodeId(null);
     }, [bibleData]);
 
     const handleChapterChange = useCallback((chapterNum) => {
         const newChapter = chapterNum ? parseInt(chapterNum, 10) : null;
         setSelectedChapter(newChapter);
         setSelectedVerse(null); setFilterError(null);
+        // Uses imported getVersesForChapter
         setVerseList(bibleData && selectedBook && newChapter ? getVersesForChapter(bibleData, selectedBook, newChapter) : []);
-        // Set selectedNodeId to the chapter ID
+        // Set selectedNodeId to the chapter ID using imported normalizer
         if (selectedBook && newChapter !== null) {
             const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${newChapter}`;
-            setSelectedNodeId(chapterNodeId); // Auto-select chapter node
+            setSelectedNodeId(chapterNodeId);
         } else { setSelectedNodeId(null); }
     }, [bibleData, selectedBook]);
 
      const handleVerseChange = useCallback((verseNum) => {
         const newVerse = verseNum ? parseInt(verseNum, 10) : null;
         setSelectedVerse(newVerse);
-        // Update selectedNodeId based on verse selection
+        // Update selectedNodeId based on verse selection using imported normalizer
         if (selectedBook && selectedChapter !== null) {
             if (newVerse !== null) {
                 const verseNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}v${newVerse}`;
-                setSelectedNodeId(verseNodeId); // Select specific verse node
-            } else { // Verse deselected ("All Verses")
+                setSelectedNodeId(verseNodeId);
+            } else {
                 const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
-                setSelectedNodeId(chapterNodeId); // Revert selection to chapter node
+                setSelectedNodeId(chapterNodeId);
             }
         } else { setSelectedNodeId(null); }
      }, [selectedBook, selectedChapter]);
@@ -149,12 +133,12 @@ export function useVisualizationState(bibleData, allReferencesData) {
     const handleToggleView = useCallback(() => {
         setViewMode(prevMode => {
             const newMode = prevMode === 'chapter' ? 'verse' : 'chapter';
-            // When toggling, reset selection to the chapter level node
+            // Reset selected node ID to the chapter level using imported normalizer
             if (selectedBook && selectedChapter !== null) {
                  const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
                  setSelectedNodeId(chapterNodeId);
             } else { setSelectedNodeId(null); }
-            setSelectedVerse(null); // Reset specific verse selection
+            setSelectedVerse(null);
             return newMode;
         });
     }, [selectedBook, selectedChapter]);
@@ -173,5 +157,4 @@ export function useVisualizationState(bibleData, allReferencesData) {
     };
 }
 
-// Import necessary normalization function if used directly (e.g., for default Node ID construction)
-import { normalizeBookNameForId, normalizeBookNameForText } from '@/utils/dataService';
+// NO DUPLICATE IMPORT OR HELPER FUNCTION DEFINITION HERE
