@@ -1,44 +1,33 @@
-// hooks/useVisualizationState.js (MVP v8.3 - Add finally Log)
+// hooks/useVisualizationState.js (MVP v8.3 - Cleaned, Imports Verified)
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 // Import necessary functions from dataService
+// Ensure ALL needed functions, including normalizers used in handlers/effects, are listed here ONCE.
 import {
     getConnectionsFor,
     getChapters,
     getBooks,
     getVersesForChapter,
     normalizeBookNameForId, // Needed for constructing node IDs
-    normalizeBookNameForText // Needed by getVersesForChapter if defined locally
+    normalizeBookNameForText // Needed for getting chapters/verses by display name if bibleData keys use it
 } from '@/utils/dataService';
 
-// Helper function moved here from dataService temporarily for direct access if needed
-// Ensure this matches the version in dataService or remove if import works reliably
-const getVersesForChapterLocal = (bibleData, bookName, chapterNum) => {
-    if (!bibleData || !bookName || !chapterNum) return [];
-    try {
-        const canonicalBook = normalizeBookNameForText(bookName);
-        // Assume bibleLookupMap might not be ready, use raw data if available
-        const book = bibleData.books?.find(b => normalizeBookNameForText(b.name) === canonicalBook);
-        const chapter = book?.chapters?.find(c => c.chapter === chapterNum);
-        return chapter?.verses?.map(v => v.verse).sort((a, b) => a - b) || [];
-    } catch (error) {
-        console.error(`Error getting verses for ${bookName} ${chapterNum}:`, error);
-    }
-    return [];
-};
-
-
+/**
+ * Custom hook to manage state related to user selections,
+ * data filtering for visualization, interaction callbacks,
+ * and setting the initial default view (Genesis 5, Chapter Mode).
+ */
 export function useVisualizationState(bibleData, allReferencesData) {
     // --- State ---
     const [selectedBook, setSelectedBook] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
     const [selectedVerse, setSelectedVerse] = useState(null);
-    const [viewMode, setViewMode] = useState('chapter');
+    const [viewMode, setViewMode] = useState('chapter'); // Default to chapter view
     const [chapterList, setChapterList] = useState([]);
     const [verseList, setVerseList] = useState([]);
     const [filteredConnectionData, setFilteredConnectionData] = useState(null);
-    const [isFiltering, setIsFiltering] = useState(false); // Default should be false
+    const [isFiltering, setIsFiltering] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [hoveredNodeId, setHoveredNodeId] = useState(null);
     const [filterError, setFilterError] = useState(null);
@@ -46,20 +35,31 @@ export function useVisualizationState(bibleData, allReferencesData) {
      // --- Effect to Set Default Selection ---
      useEffect(() => {
         // console.log(`[Default Effect] Running. bibleData valid: ${!!bibleData?.books}, selectedBook: ${selectedBook}, selectedChapter: ${selectedChapter}`);
+
+        // Set default only if bibleData is loaded/valid and no book/chapter is selected yet
         if (bibleData && bibleData.books && bibleData.books.length > 0 && !selectedBook && !selectedChapter) {
             // console.log("[Default Effect] Conditions met, attempting to set default...");
             try {
-                const books = getBooks(bibleData);
+                const books = getBooks(bibleData); // Uses imported function
+                // console.log("[Default Effect] getBooks result (first 5):", books?.slice(0,5));
+
                 if (books && books.length > 0) {
-                    const defaultBook = "Genesis"; const defaultChapter = 5;
+                    const defaultBook = "Genesis"; // Target canonical name
+                    const defaultChapter = 5;
+
+                    // Check if default book exists in the canonically sorted list
                     if (books.includes(defaultBook)) {
-                        const defaultChapters = getChapters(bibleData, defaultBook);
+                        const defaultChapters = getChapters(bibleData, defaultBook); // Use canonical name
+                        // console.log(`[Default Effect] Chapters for ${defaultBook}:`, defaultChapters);
                         if (defaultChapters && defaultChapters.includes(defaultChapter)) {
-                            setSelectedBook(defaultBook); setSelectedChapter(defaultChapter); setChapterList(defaultChapters);
-                            // Use the local helper or imported one
-                            const defaultVerses = getVersesForChapterLocal(bibleData, defaultBook, defaultChapter);
+                            // --- Set State ---
+                            setSelectedBook(defaultBook);
+                            setSelectedChapter(defaultChapter);
+                            setChapterList(defaultChapters);
+                            const defaultVerses = getVersesForChapter(bibleData, defaultBook, defaultChapter); // Use canonical name
                             setVerseList(defaultVerses);
-                            const defaultNodeId = `${normalizeBookNameForId(defaultBook)}${defaultChapter}`;
+                            // Set default selected node ID using ID normalization
+                            const defaultNodeId = `${normalizeBookNameForId(defaultBook)}${defaultChapter}`; // Use ID norm for node ID
                             setSelectedNodeId(defaultNodeId);
                             console.log(`useVisState: Set default selection: ${defaultBook} ${defaultChapter}, Node: ${defaultNodeId}, View: ${viewMode}`);
                         } else { console.warn(`[Default Effect] Could not find default chapter ${defaultChapter} in ${defaultBook}`); }
@@ -67,95 +67,98 @@ export function useVisualizationState(bibleData, allReferencesData) {
                 } else { console.warn("[Default Effect] getBooks returned empty list."); }
             } catch (e) { console.error("[Default Effect] Error during default selection logic:", e); }
         }
-    }, [bibleData]); // Depend only on bibleData
+    // Depend only on bibleData. This effect should run once when bibleData is loaded.
+    }, [bibleData]); // Removed selectedBook, selectedChapter from deps
 
 
     // --- Effect to Update Filtered Data ---
     useEffect(() => {
         let isMounted = true;
         if (selectedBook && selectedChapter && allReferencesData) {
-            // console.log(`[Filter Effect] Triggered for ${selectedBook} ${selectedChapter} - Mode ${viewMode}`);
-            setIsFiltering(true); // Set filtering BEFORE async operation
-            setFilterError(null);
-            setHoveredNodeId(null); // Reset hover always
-
-            requestAnimationFrame(() => { // Allow state update to render
+            setIsFiltering(true); setFilterError(null); setHoveredNodeId(null);
+            requestAnimationFrame(() => { // Use rAF for smoother UI update
                 if (!isMounted) return;
                 try {
-                    // console.log(`[Filter Effect] Calling getConnectionsFor...`);
+                    // console.log(`[Filter Effect] Calling getConnectionsFor: B=${selectedBook}, C=${selectedChapter}, M=${viewMode}`);
+                    // Pass canonical selectedBook name; getConnectionsFor uses normalizeBookNameForId internally for prefix
                     const filteredData = getConnectionsFor(allReferencesData, selectedBook, selectedChapter, viewMode);
-                     if (isMounted) {
-                        // console.log(`[Filter Effect] Setting filtered data: nodes=${filteredData?.nodes?.length}, links=${filteredData?.links?.length}`);
-                        setFilteredConnectionData(filteredData);
-                     }
+                     if (isMounted) setFilteredConnectionData(filteredData);
                 } catch (err) {
                     console.error("useVisualizationState: Filtering failed:", err);
                      if (isMounted) { setFilteredConnectionData(null); setFilterError("Failed to load connections."); }
                 } finally {
-                     if (isMounted) {
-                         console.log("[Filter Effect] Setting isFiltering to false."); // <<< ADDED LOG HERE
-                         setIsFiltering(false);
-                     }
+                     if (isMounted) setIsFiltering(false);
                 }
             });
         } else {
-             // If selection is incomplete, ensure filtering is false and data is null
-             if(isFiltering) setIsFiltering(false); // Reset if selection cleared while filtering
-             if(filteredConnectionData !== null) setFilteredConnectionData(null);
-             if(filterError !== null) setFilterError(null);
-             // console.log("[Filter Effect] Selection incomplete, ensuring filter state reset.");
+             // Clear data if selection is incomplete
+             if (isMounted) { setFilteredConnectionData(null); setIsFiltering(false); setFilterError(null); }
         }
         return () => { isMounted = false; }; // Cleanup flag
-    }, [selectedBook, selectedChapter, viewMode, allReferencesData]); // Dependencies
+    }, [selectedBook, selectedChapter, viewMode, allReferencesData]); // Correct dependencies
 
     // --- Memoized Event Handlers ---
-    const handleBookChange = useCallback((bookName) => {
-        setSelectedBook(bookName); setSelectedChapter(null); setSelectedVerse(null);
-        setFilteredConnectionData(null); setFilterError(null); setSelectedNodeId(null); // Reset node ID
-        setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []); setVerseList([]);
+    const handleBookChange = useCallback((bookName) => { // bookName received is already canonical from getBooks list
+        setSelectedBook(bookName);
+        setSelectedChapter(null); setSelectedVerse(null);
+        setFilteredConnectionData(null); setFilterError(null);
+        setChapterList(bibleData && bookName ? getChapters(bibleData, bookName) : []); // Use canonical name
+        setVerseList([]);
+        setSelectedNodeId(null);
     }, [bibleData]);
 
     const handleChapterChange = useCallback((chapterNum) => {
         const newChapter = chapterNum ? parseInt(chapterNum, 10) : null;
-        setSelectedChapter(newChapter); setSelectedVerse(null); setFilterError(null);
-        setVerseList(bibleData && selectedBook && newChapter ? getVersesForChapterLocal(bibleData, selectedBook, newChapter) : []); // Use local helper
-        if (selectedBook && newChapter !== null) { const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${newChapter}`; setSelectedNodeId(chapterNodeId); } else { setSelectedNodeId(null); }
-    }, [bibleData, selectedBook]); // Add selectedBook dependency
+        setSelectedChapter(newChapter);
+        setSelectedVerse(null); setFilterError(null);
+        setVerseList(bibleData && selectedBook && newChapter ? getVersesForChapter(bibleData, selectedBook, newChapter) : []); // Use canonical selectedBook
+        // Set selectedNodeId to the chapter ID using ID normalizer on canonical selectedBook
+        if (selectedBook && newChapter !== null) {
+            const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${newChapter}`;
+            setSelectedNodeId(chapterNodeId);
+        } else { setSelectedNodeId(null); }
+    }, [bibleData, selectedBook]); // Depends on canonical selectedBook
 
      const handleVerseChange = useCallback((verseNum) => {
         const newVerse = verseNum ? parseInt(verseNum, 10) : null;
         setSelectedVerse(newVerse);
+        // Update selectedNodeId based on verse selection using ID normalizer on canonical selectedBook
         if (selectedBook && selectedChapter !== null) {
-            if (newVerse !== null) { const verseNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}v${newVerse}`; setSelectedNodeId(verseNodeId); }
-            else { const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`; setSelectedNodeId(chapterNodeId); }
+            if (newVerse !== null) {
+                const verseNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}v${newVerse}`;
+                setSelectedNodeId(verseNodeId);
+            } else { // Verse deselected ("All Verses")
+                const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
+                setSelectedNodeId(chapterNodeId);
+            }
         } else { setSelectedNodeId(null); }
-     }, [selectedBook, selectedChapter]);
+     }, [selectedBook, selectedChapter]); // Depends on canonical selectedBook/selectedChapter
 
     const handleToggleView = useCallback(() => {
-        setViewMode(prevMode => { const newMode = prevMode === 'chapter' ? 'verse' : 'chapter'; if (selectedBook && selectedChapter !== null) { const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`; setSelectedNodeId(chapterNodeId); } else { setSelectedNodeId(null); } setSelectedVerse(null); return newMode; });
-    }, [selectedBook, selectedChapter]);
+        setViewMode(prevMode => {
+            const newMode = prevMode === 'chapter' ? 'verse' : 'chapter';
+            // Reset selected node ID to the chapter level using ID normalizer on canonical selectedBook
+            if (selectedBook && selectedChapter !== null) {
+                 const chapterNodeId = `${normalizeBookNameForId(selectedBook)}${selectedChapter}`;
+                 setSelectedNodeId(chapterNodeId);
+            } else { setSelectedNodeId(null); }
+            setSelectedVerse(null);
+            return newMode;
+        });
+    }, [selectedBook, selectedChapter]); // Depends on canonical selectedBook/selectedChapter
 
     const handleNodeSelect = useCallback((nodeId) => { setSelectedNodeId(nodeId); setHoveredNodeId(null); }, []);
     const handleNodeHoverStart = useCallback((nodeId) => { setHoveredNodeId(nodeId); }, []);
     const handleNodeHoverEnd = useCallback(() => { setHoveredNodeId(null); }, []);
 
     // --- Return State and Handlers ---
-    return { selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList, filteredConnectionData, isFiltering, filterError, selectedNodeId, hoveredNodeId, handleBookChange, handleChapterChange, handleVerseChange, handleToggleView, handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd };
+    return {
+        selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
+        filteredConnectionData, isFiltering, filterError,
+        selectedNodeId, hoveredNodeId,
+        handleBookChange, handleChapterChange, handleVerseChange, handleToggleView,
+        handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd
+    };
 }
 
-// Added local helper function for getVersesForChapter to ensure availability
-// Make sure normalizeBookNameForText is also defined or imported if needed by this helper
-// (It's imported below, which is fine)
-const getVersesForChapter = (bibleData, bookName, chapterNum) => {
-    if (!bibleData || !bookName || !chapterNum) return [];
-    try {
-        const canonicalBook = normalizeBookNameForText(bookName); // Need this function
-        const book = bibleData.books?.find(b => normalizeBookNameForText(b.name) === canonicalBook); // Use text normalization
-        const chapter = book?.chapters?.find(c => c.chapter === chapterNum);
-        return chapter?.verses?.map(v => v.verse).sort((a, b) => a - b) || [];
-    } catch (error) { console.error(`Error getting verses for ${bookName} ${chapterNum}:`, error); }
-    return [];
-};
-
-// Import needed normalization functions IF they are used within local helpers above
-import { normalizeBookNameForText } from '@/utils/dataService';
+// No helper function definition here - rely on import
