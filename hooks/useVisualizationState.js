@@ -174,8 +174,4 @@ export function useVisualizationState(bibleData, allReferencesData) {
         handleBookChange, handleChapterChange, handleVerseChange, handleToggleView,
         handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd
     };
-}
-
-// Import normalizeBookNameForId IF it's needed inside this hook's logic
-// (Currently needed for setting default node ID and updating node ID in handlers)
-import { normalizeBookNameForId } from '@/utils/dataService';
+};
