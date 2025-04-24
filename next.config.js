@@ -1,27 +1,24 @@
-// next.config.js (Temporary Dev Fix)
-
 /** @type {import('next').NextConfig} */
 const repoName = 'interactive-bible-connection-simulator';
 const isGithubActions = process.env.GITHUB_ACTIONS || false;
 
 let assetPrefix = '/';
-let basePath = ''; // Temporarily disable for dev
+let basePath = '';
 
-// Commenting out the basePath logic for local dev server
-
+// This logic SHOULD be active for deployment
 if (isGithubActions) {
   assetPrefix = `/${repoName}/`;
   basePath = `/${repoName}`;
 } else {
+  // Ensure these are set for manual deployment to subdirectory
   assetPrefix = `/${repoName}/`;
   basePath = `/${repoName}`;
 }
 
-
 const nextConfig = {
   output: 'export',
-  basePath: basePath,     // Temporarily disabled
-  assetPrefix: assetPrefix, // Temporarily disabled (assetPrefix usually matters less for dev)
+  basePath: basePath,     // Should be active and set
+  assetPrefix: assetPrefix, // Should be active and set
   images: { unoptimized: true },
 };
 

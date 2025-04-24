@@ -1,4 +1,4 @@
-// app/page.js (MRP v1.1 - Integrate About Modal)
+// app/page.js (MRP v1.2 - Fixed JSX Error & Removed Hover Props)
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
@@ -13,7 +13,7 @@ import ViewToggle from '@/components/ViewToggle';
 import TextDisplayPanel from '@/components/TextDisplayPanel';
 import ReferenceSelector from '@/components/ReferenceSelector';
 import ReferenceListPanel from '@/components/ReferenceListPanel';
-import AboutModal from '@/components/AboutModal'; // <-- Import the new modal
+import AboutModal from '@/components/AboutModal'; // Import the modal
 
 export default function MainPage() {
     // --- Hooks ---
@@ -21,13 +21,14 @@ export default function MainPage() {
     const { dimensions } = useResponsiveDimensions();
     const {
         selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
-        filteredConnectionData, selectedNodeId, hoveredNodeId, isLoadingConnections, filterError,
+        filteredConnectionData, selectedNodeId, // Removed: hoveredNodeId
+        isLoadingConnections, filterError,
         handleBookChange, handleChapterChange, handleVerseChange, handleToggleView,
-        handleNodeSelect, handleNodeHoverStart, handleNodeHoverEnd
+        handleNodeSelect // Removed: handleNodeHoverStart, handleNodeHoverEnd
     } = useVisualizationState(bibleData, allReferencesData);
 
     // --- Local State ---
-    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false); // State for modal visibility
+    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [resetZoomKey, setResetZoomKey] = useState(0);
 
     // --- Callbacks ---
@@ -39,10 +40,10 @@ export default function MainPage() {
     const isProcessing = isLoadingCoreData || isLoadingConnections;
 
     // --- Render Logic ---
-    if (isLoadingCoreData && !dataError) { /* ... Loading State ... */
+    if (isLoadingCoreData && !dataError) {
         return <div className="flex justify-center items-center min-h-screen p-4 text-center text-lg text-gray-600 dark:text-gray-400">Loading Bible Data...</div>;
-     }
-    if (dataError) { /* ... Error State ... */
+    }
+    if (dataError) {
         return <div className="flex flex-col justify-center items-center min-h-screen p-4 text-center text-red-600 dark:text-red-400"><h1 className="text-xl font-semibold mb-2">Error Loading Data</h1><p className="text-sm">{dataError}</p><p className="mt-4 text-xs">Please try refreshing the page.</p></div>;
     }
 
@@ -57,11 +58,33 @@ export default function MainPage() {
                             Bible Connections Explorer
                         </h1>
                         <div id="controls-area" className="flex flex-wrap gap-2 items-center justify-center sm:justify-end">
-                            {/* ... ReferenceSelector, ViewToggle, Reset Button ... */}
-                             <ReferenceSelector bookList={bookList} chapterList={chapterList} verseList={verseList} selectedBook={selectedBook} selectedChapter={selectedChapter} selectedVerse={selectedVerse} onBookChange={handleBookChange} onChapterChange={handleChapterChange} onVerseChange={handleVerseChange} isDisabled={isProcessing} viewMode={viewMode}/>
-                             <ViewToggle currentView={viewMode} onToggle={handleToggleView} disabled={!selectedChapter || isProcessing}/>
-                             <button onClick={triggerZoomReset} className="px-3 py-1 border rounded text-xs bg-gray-200 dark:bg-gray-600 hover:enabled:bg-gray-300 dark:hover:enabled:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" title="Reset diagram zoom and pan" disabled={isProcessing || !filteredConnectionData?.nodes?.length} aria-disabled={isProcessing || !filteredConnectionData?.nodes?.length}>Reset View</button>
-                             {/* Updated "About" Button */}
+                             <ReferenceSelector
+                                bookList={bookList}
+                                chapterList={chapterList}
+                                verseList={verseList}
+                                selectedBook={selectedBook}
+                                selectedChapter={selectedChapter}
+                                selectedVerse={selectedVerse}
+                                onBookChange={handleBookChange}
+                                onChapterChange={handleChapterChange}
+                                onVerseChange={handleVerseChange}
+                                isDisabled={isProcessing}
+                                viewMode={viewMode}
+                            />
+                             <ViewToggle
+                                currentView={viewMode}
+                                onToggle={handleToggleView}
+                                disabled={!selectedChapter || isProcessing}
+                            />
+                             <button
+                                onClick={triggerZoomReset}
+                                className="px-3 py-1 border rounded text-xs bg-gray-200 dark:bg-gray-600 hover:enabled:bg-gray-300 dark:hover:enabled:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Reset diagram zoom and pan"
+                                disabled={isProcessing || !filteredConnectionData?.nodes?.length}
+                                aria-disabled={isProcessing || !filteredConnectionData?.nodes?.length}
+                            >
+                                Reset View
+                            </button>
                              <button
                                 onClick={openAboutModal}
                                 className="px-3 py-1 border rounded text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
@@ -71,29 +94,56 @@ export default function MainPage() {
                              </button>
                         </div>
                     </div>
-                    {filterError && ( <div className="max-w-screen-xl mx-auto text-center text-red-500 dark:text-red-400 text-xs pt-1">{filterError}</div> )}
+                    {/* CORRECTED: Display Filtering Errors Below Controls */}
+                    {filterError && (
+                         <div className="max-w-screen-xl mx-auto text-center text-red-500 dark:text-red-400 text-xs pt-1">{filterError}</div>
+                     )}
                 </header>
 
                 {/* Main Content Area */}
                  <div className="flex flex-col lg:flex-row w-full max-w-screen-xl mx-auto gap-3 flex-grow min-h-0 p-2 md:p-3">
                     {/* Visualization Area */}
                      <div className="w-full lg:flex-1 h-[60vh] lg:h-full border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1 viz-container">
-                         {isLoadingConnections && ( /* ... Loader Overlay ... */ <div className="absolute inset-0 bg-gray-500 bg-opacity-50 dark:bg-gray-800 dark:bg-opacity-60 flex justify-center items-center z-10 rounded-lg"><span className="text-white dark:text-gray-200 font-semibold text-lg animate-pulse p-4 bg-gray-700 dark:bg-gray-600 rounded shadow-xl">Loading Connections...</span></div> )}
+                         {isLoadingConnections && (
+                            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 dark:bg-gray-800 dark:bg-opacity-60 flex justify-center items-center z-10 rounded-lg"><span className="text-white dark:text-gray-200 font-semibold text-lg animate-pulse p-4 bg-gray-700 dark:bg-gray-600 rounded shadow-xl">Loading Connections...</span></div>
+                         )}
                          {dimensions.width > 0 && dimensions.height > 0 ? (
-                             <ArcDiagramContainer data={filteredConnectionData} isLoading={isLoadingCoreData || isLoadingConnections || !selectedChapter} width={dimensions.width} height={dimensions.height} selectedNodeId={selectedNodeId} onNodeSelect={handleNodeSelect} onNodeHoverStart={handleNodeHoverStart} onNodeHoverEnd={handleNodeHoverEnd} resetZoomTrigger={resetZoomKey} />
+                             <ArcDiagramContainer
+                                data={filteredConnectionData}
+                                isLoading={isLoadingCoreData || isLoadingConnections || !selectedChapter}
+                                width={dimensions.width}
+                                height={dimensions.height}
+                                selectedNodeId={selectedNodeId}
+                                onNodeSelect={handleNodeSelect}
+                                // Removed hover handlers
+                                resetZoomTrigger={resetZoomKey}
+                            />
                          ) : ( <div className="text-gray-500 dark:text-gray-400">Calculating size...</div> )}
                     </div>
 
                     {/* Info Panels Area */}
                      <aside className="w-full lg:w-[340px] lg:max-w-[340px] flex-shrink-0 h-[40vh] lg:h-full flex flex-col gap-3 overflow-hidden">
-                         <div className="flex-1 min-h-0"> <TextDisplayPanel selectedNodeId={selectedNodeId} hoveredNodeId={hoveredNodeId} bibleData={bibleData} isLoadingBibleData={isLoadingCoreData} /> </div>
-                         <div className="flex-1 min-h-0"> <ReferenceListPanel selectedNodeId={selectedNodeId} connectionData={filteredConnectionData} isLoadingConnections={isLoadingConnections} /> </div>
+                         <div className="flex-1 min-h-0">
+                             <TextDisplayPanel
+                                selectedNodeId={selectedNodeId}
+                                // Removed hoveredNodeId prop
+                                bibleData={bibleData}
+                                isLoadingBibleData={isLoadingCoreData}
+                            />
+                         </div>
+                         <div className="flex-1 min-h-0">
+                            <ReferenceListPanel
+                                selectedNodeId={selectedNodeId}
+                                connectionData={filteredConnectionData}
+                                isLoadingConnections={isLoadingConnections}
+                            />
+                         </div>
                     </aside>
                 </div>
 
                 {/* Footer Area */}
                 <footer id="main-footer" className="flex-shrink-0 py-1 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
-                    MRP v1.0 | Developed by JSilvaLabs - Global Minister Education
+                    MRP v1.1 | Developed by JSilvaLabs - Global Minister Education
                 </footer>
             </main>
 
