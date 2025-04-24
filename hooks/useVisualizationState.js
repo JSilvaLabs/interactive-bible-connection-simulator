@@ -2,7 +2,7 @@
 
 import bibleDataRaw from '@/data/BSB.json';
 import allReferencesRaw from '@/data/references.json';
-import { BIBLE_BOOK_ORDER_MAP, getBookSortIndex } from './canonicalOrder';
+import { BIBLE_BOOK_ORDER_MAP, getBookSortIndex } from '@/utils/canonicalOrder';
 
 // --- Module-level Caches ---
 let bibleDataCache = null;
