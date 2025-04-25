@@ -1,4 +1,4 @@
-// components/ArcDiagramContainer.js (MRP v1.1 - Pass viewMode)
+// components/ArcDiagramContainer.js (MRP v1.5 - Adjust Margins)
 "use client";
 
 import React, { useRef } from 'react';
@@ -13,17 +13,22 @@ function ArcDiagramContainer({
     isLoading,
     resetZoomTrigger,
     selectedNodeId,
-    viewMode // <<< Added prop
+    viewMode // Prop passed down
 }) {
     const svgRef = useRef(); // Ref for the SVG element itself
 
-    // Margins defined for vertical layout (adjust as needed)
-    const isSmallScreenWidth = width < 500;
+    // Determine responsive horizontal margins
+    const isSmallScreenWidth = width < 640; // Use sm breakpoint for margin change
+    const horizontalMargin = isSmallScreenWidth ? 20 : 40;
+    // Reduce vertical margins for better space utilization
+    const verticalMargin = 20; // Reduced from 30/40
+
     const margin = {
-        top: 30,
-        right: isSmallScreenWidth ? 20 : 40,
-        bottom: 40,
-        left: isSmallScreenWidth ? 80 : 250 // Use wider left margin for labels
+        top: verticalMargin,
+        right: horizontalMargin,
+        bottom: verticalMargin, // Use reduced vertical margin
+        // Keep potentially larger left margin for labels, adjusted slightly
+        left: isSmallScreenWidth ? 60 : 150
     };
 
     // Calculate inner dimensions, ensuring they are non-negative
@@ -33,10 +38,10 @@ function ArcDiagramContainer({
     let content;
 
     // Check if inner dimensions are sufficient
-    if (innerWidth <= 10 || innerHeight <= 50) {
+    if (innerWidth <= 10 || innerHeight <= 20) { // Adjusted min height check slightly
          content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">Container too small.</text> );
     } else if (isLoading) {
-        // Display loading message if isLoading is true (passed from page)
+        // Display loading message if isLoading is true
         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading Connections...</text> );
     } else if (!data || !data.nodes || data.nodes.length === 0) {
          // Display message if no data or no nodes after loading completes
@@ -53,7 +58,7 @@ function ArcDiagramContainer({
                     selectedNodeId={selectedNodeId}
                     onNodeSelect={onNodeSelect}
                     resetZoomTrigger={resetZoomTrigger}
-                    viewMode={viewMode} // <<< Pass viewMode down
+                    viewMode={viewMode} // Pass viewMode down
                 />
             </g>
         );
