@@ -1,4 +1,4 @@
-// app/page.js (MRP v1.5 - Refine Panel Heights for Scrolling)
+// app/page.js (MRP v1.8 - Adjust Control Layout)
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
@@ -42,11 +42,11 @@ export default function MainPage() {
 
     return (
         <>
-            {/* Allow scrolling on main element */}
+            {/* Remove fixed height/overflow from main for scrolling */}
             <main className="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                 {/* Header Area */}
-                <header id="main-header" className="flex-shrink-0 w-full p-2 md:p-3 shadow-md bg-white dark:bg-gray-800 z-20 sticky top-0">
-                    <div className="max-w-screen-xl mx-auto flex flex-col gap-2">
+                <header id="main-header" className="flex-shrink-0 w-full p-2 md:p-3 shadow-md bg-white dark:bg-gray-800 z-20 sticky top-0"> {/* Make header sticky */}
+                    <div className="max-w-screen-xl mx-auto flex flex-col gap-2"> {/* Stack controls vertically by default */}
                         {/* Top Row: Title */}
                         <div className="flex justify-between items-center w-full">
                              <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
@@ -54,9 +54,10 @@ export default function MainPage() {
                              </h1>
                         </div>
                         {/* Control Rows Area */}
-                        <div id="controls-area" className="w-full flex flex-col sm:flex-row sm:flex-wrap gap-2 items-center justify-center sm:justify-start">
-                             {/* Row 1 (Mobile) / Part 1 (Desktop): Selectors */}
-                             <div className="w-full sm:w-auto flex flex-wrap gap-2 justify-center sm:justify-start">
+                        {/* Allow wrapping overall, but justify center on mobile, start on sm+ */}
+                        <div id="controls-area" className="w-full flex flex-wrap gap-y-2 gap-x-4 items-center justify-center sm:justify-start">
+                             {/* Group 1: Selectors - Allow this group to wrap if needed, but internally try not to */}
+                             <div className="flex-shrink-0"> {/* Prevent this group from shrinking excessively */}
                                  <ReferenceSelector
                                     bookList={bookList}
                                     chapterList={chapterList}
@@ -71,8 +72,8 @@ export default function MainPage() {
                                     viewMode={viewMode}
                                 />
                              </div>
-                             {/* Row 2 (Mobile) / Part 2 (Desktop): Buttons */}
-                             <div className="w-full sm:w-auto flex flex-wrap gap-2 justify-center sm:justify-start">
+                             {/* Group 2: Buttons - Allow wrapping independently */}
+                             <div className="flex flex-wrap gap-2 justify-center sm:justify-start flex-shrink-0"> {/* Buttons shouldn't shrink */}
                                 <ViewToggle
                                     currentView={viewMode}
                                     onToggle={handleToggleView}
@@ -147,7 +148,7 @@ export default function MainPage() {
                 <footer id="main-footer" className="flex-shrink-0 w-full mt-auto py-2 px-3 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 z-10">
                     {/* Moved About button here */}
                     <button onClick={openAboutModal} className="text-blue-600 dark:text-blue-400 hover:underline mx-2">About</button> |
-                    <span className="mx-2">MRP v1.4 | Developed by JSilvaLabs - Global Minister Education</span>
+                    <span className="mx-2">MRP v1.8 | Developed by JSilvaLabs - Global Minister Education</span> {/* Updated version */}
                 </footer>
             </main>
 

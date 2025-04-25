@@ -1,71 +1,59 @@
-// components/ArcDiagramContainer.js (MRP v1.5 - Adjust Margins)
+// components/ArcDiagramContainer.js (MRP v1.8 - Responsive Vertical Margins)
 "use client";
 
 import React, { useRef } from 'react';
 import ArcDiagram from './ArcDiagram';
 
 function ArcDiagramContainer({
-    data,
-    width,
-    height,
-    onNodeSelect,
-    // Removed hover handlers
-    isLoading,
-    resetZoomTrigger,
-    selectedNodeId,
-    viewMode // Prop passed down
+    data, width, height, onNodeSelect, isLoading,
+    resetZoomTrigger, selectedNodeId, viewMode
 }) {
-    const svgRef = useRef(); // Ref for the SVG element itself
+    const svgRef = useRef();
 
     // Determine responsive horizontal margins
-    const isSmallScreenWidth = width < 640; // Use sm breakpoint for margin change
+    const isSmallScreenWidth = width < 640; // sm breakpoint
     const horizontalMargin = isSmallScreenWidth ? 20 : 40;
-    // Reduce vertical margins for better space utilization
-    const verticalMargin = 20; // Reduced from 30/40
+
+    // Define different vertical margins
+    const mobileVerticalMargin = 10; // Smaller margin for mobile
+    const desktopVerticalMargin = 20;// Keep slightly larger for desktop
+    const verticalMargin = isSmallScreenWidth ? mobileVerticalMargin : desktopVerticalMargin;
+
+    // Adjust left margin based on screen width
+    const leftMargin = isSmallScreenWidth ? 50 : 150; // Reduced mobile left margin slightly
 
     const margin = {
         top: verticalMargin,
         right: horizontalMargin,
-        bottom: verticalMargin, // Use reduced vertical margin
-        // Keep potentially larger left margin for labels, adjusted slightly
-        left: isSmallScreenWidth ? 60 : 150
+        bottom: verticalMargin,
+        left: leftMargin
     };
 
-    // Calculate inner dimensions, ensuring they are non-negative
+    // Calculate inner dimensions
     const innerWidth = Math.max(1, width - margin.left - margin.right);
     const innerHeight = Math.max(1, height - margin.top - margin.bottom);
 
     let content;
 
-    // Check if inner dimensions are sufficient
-    if (innerWidth <= 10 || innerHeight <= 20) { // Adjusted min height check slightly
-         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-sm text-red-500">Container too small.</text> );
+    if (innerWidth <= 10 || innerHeight <= 10) { // Adjusted min height check
+         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-xs text-red-500">Too small</text> ); // Smaller text
     } else if (isLoading) {
-        // Display loading message if isLoading is true
-        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading Connections...</text> );
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading...</text> ); // Shorter text
     } else if (!data || !data.nodes || data.nodes.length === 0) {
-         // Display message if no data or no nodes after loading completes
-        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">{ !data ? "Select Book/Chapter." : "No connections found." }</text> );
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">{ !data ? "Select Book/Ch." : "No connections." }</text> ); // Shorter text
     } else {
-        // Render the ArcDiagram within a translated group if data is valid
         content = (
             <g transform={`translate(${margin.left},${margin.top})`}>
                 <ArcDiagram
-                    svgRef={svgRef} // Pass parent SVG ref down
-                    data={data}
-                    width={innerWidth}
-                    height={innerHeight}
-                    selectedNodeId={selectedNodeId}
-                    onNodeSelect={onNodeSelect}
-                    resetZoomTrigger={resetZoomTrigger}
-                    viewMode={viewMode} // Pass viewMode down
+                    svgRef={svgRef} data={data} width={innerWidth} height={innerHeight}
+                    selectedNodeId={selectedNodeId} onNodeSelect={onNodeSelect}
+                    resetZoomTrigger={resetZoomTrigger} viewMode={viewMode}
                 />
             </g>
         );
     }
 
     return (
-        // Attach ref to the SVG element
         <svg ref={svgRef} width={width} height={height} className="arc-diagram-svg max-w-full max-h-full block bg-white dark:bg-gray-900" aria-label="Arc Diagram Visualization">
             {content}
         </svg>
