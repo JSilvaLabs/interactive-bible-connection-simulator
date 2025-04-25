@@ -1,4 +1,4 @@
-// app/page.js (MRP v1.11 - Remove Fixed Height from Viz Container)
+// app/page.js (MRP v1.13 - Simplify Viz Container Height)
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
@@ -18,7 +18,7 @@ import AboutModal from '@/components/AboutModal';
 export default function MainPage() {
     // --- Hooks, State, Callbacks ---
     const { bibleData, allReferencesData, bookList, isLoadingData: isLoadingCoreData, error: dataError } = useBibleData();
-    const { dimensions } = useResponsiveDimensions(); // Hook now focuses on width primarily
+    const { dimensions } = useResponsiveDimensions(); // Use updated hook
     const {
         selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
         filteredConnectionData, selectedNodeId, isLoadingConnections, filterError,
@@ -100,18 +100,18 @@ export default function MainPage() {
                  {/* Use default block layout for mobile stacking, lg:flex-row for desktop */}
                  <div className="w-full max-w-screen-xl mx-auto flex-grow flex flex-col lg:flex-row gap-3 p-2 md:p-3">
                     {/* Visualization Area */}
-                     {/* Removed h-[60vh], keep lg:flex-1 */}
+                     {/* Removed h-[60vh], rely on lg:flex-1 */}
                      <div className="w-full lg:flex-1 border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1 viz-container">
                          {isLoadingConnections && (
                             <div className="absolute inset-0 bg-gray-500 bg-opacity-50 dark:bg-gray-800 dark:bg-opacity-60 flex justify-center items-center z-10 rounded-lg"><span className="text-white dark:text-gray-200 font-semibold text-lg animate-pulse p-4 bg-gray-700 dark:bg-gray-600 rounded shadow-xl">Loading...</span></div>
                          )}
-                         {/* Pass dimensions from hook. Diagram will use height prop, but container can stretch */}
+                         {/* Pass dimensions from hook. Container height now set by flexbox */}
                          {dimensions.width > 0 && dimensions.height > 0 ? (
                              <ArcDiagramContainer
                                 data={filteredConnectionData}
                                 isLoading={isLoadingCoreData || isLoadingConnections || !selectedChapter}
                                 width={dimensions.width} // Calculated width
-                                height={dimensions.height} // Suggested height (e.g., based on width)
+                                height={dimensions.height} // Revised height calculation from hook
                                 selectedNodeId={selectedNodeId}
                                 onNodeSelect={handleNodeSelect}
                                 resetZoomTrigger={resetZoomKey}
@@ -124,7 +124,7 @@ export default function MainPage() {
                      {/* Define fixed width only for desktop, stack below on mobile */}
                      {/* Reduced gap for mobile, keep larger gap for lg screens */}
                      <aside className="w-full lg:w-[340px] lg:max-w-[340px] flex-shrink-0 flex flex-col gap-2 lg:gap-3">
-                         {/* Removed min-h, rely on internal panel scrolling & flex */}
+                         {/* Let flex determine height on desktop, panels scroll internally */}
                          <div className="lg:flex-1">
                              <TextDisplayPanel
                                 selectedNodeId={selectedNodeId}
@@ -148,7 +148,7 @@ export default function MainPage() {
                 <footer id="main-footer" className="flex-shrink-0 w-full mt-auto py-2 px-3 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 z-10">
                     {/* Moved About button here */}
                     <button onClick={openAboutModal} className="text-blue-600 dark:text-blue-400 hover:underline mx-2">About</button> |
-                    <span className="mx-2">MRP v1.11 | Developed by JSilvaLabs - Global Minister Education</span> {/* Updated version */}
+                    <span className="mx-2">MRP v1.13 | Developed by JSilvaLabs - Global Minister Education</span> {/* Updated version */}
                 </footer>
             </main>
 

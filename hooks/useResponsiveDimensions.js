@@ -1,16 +1,15 @@
-// hooks/useResponsiveDimensions.js (MRP v1.11 - Focus on Width)
+// hooks/useResponsiveDimensions.js (MRP v1.13 - Revised Height Calc)
 "use client";
 
 import { useState, useEffect } from 'react';
 
 /**
- * Custom hook to calculate responsive width for a visualization container.
- * Height is now less directly calculated from window, allowing flexbox more control.
+ * Custom hook to calculate responsive width and a *more context-aware* height
+ * for a visualization container.
  */
 export function useResponsiveDimensions(
-    initialWidth = 600, // Default initial width
-    // Height is less critical now, use width as a basis or a large default
-    initialHeight = 600 // Default initial height (or set equal to initialWidth)
+    initialWidth = 600,
+    initialHeight = 450 // Reset default
 ) {
     const [dimensions, setDimensions] = useState({ width: initialWidth, height: initialHeight });
 
@@ -19,11 +18,10 @@ export function useResponsiveDimensions(
         if (typeof window !== 'undefined') {
             const handleResize = () => {
                 const windowWidth = window.innerWidth;
-                // Window height is less reliable for calculation in scrolling layouts
-                // const windowHeight = window.innerHeight;
+                const windowHeight = window.innerHeight;
                 const isLargeScreen = windowWidth >= 1024; // lg breakpoint
 
-                // --- Width Calculation (remains mostly the same) ---
+                // --- Width Calculation (Unchanged) ---
                 const horizontalPadding = 24; // Estimate padding in page.js
                 const gap = 12; // Estimate gap in page.js
                 let vizWidth;
@@ -40,14 +38,30 @@ export function useResponsiveDimensions(
                 }
                 vizWidth = Math.min(vizWidth, 2000); // Clamp max width
 
-                // --- Height Calculation (Simplified) ---
-                // Let's pass down a height related to the width to suggest an aspect ratio,
-                // but the actual container height will be controlled by CSS/Flexbox.
-                // Option A: Suggest aspect ratio (e.g., 4:3 or 1:1)
-                const vizHeight = Math.max(300, vizWidth * 0.75); // Suggest 4:3 ratio
+                // --- Height Calculation (Revised) ---
+                // Estimate heights of elements *outside* the main flex container
+                const headerElement = document.getElementById('main-header');
+                const footerElement = document.getElementById('main-footer');
+                const headerHeight = headerElement?.offsetHeight || 70; // Adjusted estimate based on content/padding
+                const footerHeight = footerElement?.offsetHeight || 30; // Adjusted estimate
+                const pageVerticalPadding = 24; // Padding of the flex container in page.js (p-2 md:p-3 -> ~16-24px)
 
-                // Option B: Pass a large fixed default - less ideal?
-                // const vizHeight = 1000;
+                // Calculate available height for the main flex container (viz + panels)
+                const availableFlexHeight = windowHeight - headerHeight - footerHeight - pageVerticalPadding;
+
+                let vizHeight;
+                if (isLargeScreen) {
+                    // Desktop: Diagram container takes flex height minus gap/padding
+                    // Let's assume minimal padding impact within the flex item
+                    vizHeight = Math.max(300, availableFlexHeight); // Let it take available flex height
+                } else {
+                    // Mobile: Diagram container takes a large portion (e.g., 60%) of flex height
+                    // Panels stack below and take roughly 40% + gap
+                    // This allows for scrolling page while suggesting a large diagram height
+                    vizHeight = Math.max(300, availableFlexHeight * 0.6); // Suggest 60% height
+                }
+
+                vizHeight = Math.min(vizHeight, 1500); // Clamp max height
 
                 // Update state only if dimensions actually changed significantly
                 setDimensions(prevDims => {
