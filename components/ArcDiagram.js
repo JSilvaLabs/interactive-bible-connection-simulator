@@ -1,4 +1,4 @@
-// components/ArcDiagram.js (MRP v1.10 - Fixed Scale Padding)
+// components/ArcDiagram.js (MRP v1.11 - Minimize Scale Padding)
 "use client";
 
 import React, { useEffect, useRef } from 'react';
@@ -7,36 +7,63 @@ import { getNodeMetadata } from '@/utils/dataService';
 
 // --- D3 Helper Functions ---
 
-// REVISED setupScales with FIXED PADDING
+// REVISED setupScales to minimize padding
 function setupScales(nodes, width, height, nodeRadius) {
-    const defaultScale = d3.scalePoint(); const defaultColor = d3.scaleOrdinal();
+    // Define the default return structure clearly
+    const defaultScale = d3.scalePoint(); // Create instance even for default
+    const defaultColor = d3.scaleOrdinal(); // Create instance even for default
     const defaultReturn = { yScale: defaultScale, colorScale: defaultColor, axisXPosition: 0 };
-    if (!nodes || !Array.isArray(nodes) || nodes.length === 0 || !width || width <= 0 || !height || height <= 0 || !nodeRadius || nodeRadius <= 0) { return defaultReturn; }
+
+    // --- Reinforced Initial Guard ---
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0 || !width || width <= 0 || !height || height <= 0 || !nodeRadius || nodeRadius <= 0) {
+        // console.error("[setupScales] Invalid parameters (nodes, width, height, or radius). Returning default scales.", { nodeCount: nodes?.length, width, height, nodeRadius });
+        return defaultReturn; // Explicitly return default object
+    }
+    // --- End Reinforced Guard ---
 
     try {
+        // Filter out any potentially invalid nodes before getting IDs
         const validNodeIds = nodes.filter(d => d && typeof d.id === 'string' && d.id.length > 0).map(d => d.id);
-        if(validNodeIds.length === 0) { return defaultReturn; }
 
-        // Use a fixed, smaller padding value
-        const padding = 0.25; // Fixed value - adjust if needed (0.2-0.5 is usually reasonable)
+        // --- Check for empty node IDs after filtering ---
+        if(validNodeIds.length === 0) {
+            // console.warn("[setupScales] No valid node IDs found after filtering. Returning default scales.");
+            return defaultReturn; // Explicitly return default object
+        }
+
+        // >> CHANGE: Use a fixed, smaller padding value <<
+        const padding = 0.05; // Very small value to ensure minimal edge spacing but maximize spread
         // console.log(`[setupScales] Using fixed padding: ${padding}`); // Log padding
 
-        // Create Y Scale with fixed padding
+        // Create Y Scale with minimal padding
         const yScale = d3.scalePoint().domain(validNodeIds).range([0, height]).padding(padding);
 
-        // Validate Y Scale
-        if (!yScale || typeof yScale.domain !== 'function' || yScale.domain().length !== validNodeIds.length || typeof yScale.bandwidth !== 'function') { console.error("[setupScales] yScale creation failed or invalid."); return defaultReturn; }
+        // --- Validate Y Scale ---
+        if (!yScale || typeof yScale.domain !== 'function' || yScale.domain().length !== validNodeIds.length || typeof yScale.bandwidth !== 'function') {
+            console.error("[setupScales] yScale creation failed or invalid (domain mismatch or no bandwidth). Returning default scales.");
+            return defaultReturn; // Explicitly return default object
+        }
 
-        // Color Scale (no changes)
-        const bookNames = Array.from(new Set(nodes.filter(d => d && d.book).map(d => d.book || 'Unknown')));
+        // Create Color Scale
+        const bookNames = Array.from(new Set(nodes.filter(d => d && d.book).map(d => d.book || 'Unknown'))); // Ensure 'book' exists before mapping
         const colorScheme = bookNames.length > 10 ? d3.schemeSpectral[Math.min(bookNames.length, 11)] : d3.schemeCategory10;
-        const colorScale = d3.scaleOrdinal(colorScheme).domain(bookNames.length > 0 ? bookNames : ['Unknown']);
-        if (typeof colorScale !== 'function' || typeof colorScale.domain !== 'function' || colorScale.domain().length === 0) { console.error("[setupScales] colorScale creation failed."); return defaultReturn; }
+        const colorScale = d3.scaleOrdinal(colorScheme).domain(bookNames.length > 0 ? bookNames : ['Unknown']); // Ensure domain is never empty
+
+        // --- Validate Color Scale ---
+        if (typeof colorScale !== 'function' || typeof colorScale.domain !== 'function' || colorScale.domain().length === 0) {
+             console.error("[setupScales] colorScale creation failed or invalid domain. Returning default scales.");
+             return defaultReturn; // Explicitly return default object
+        }
+
 
         const axisXPosition = 0;
-        return { yScale, colorScale, axisXPosition };
+        // console.log("[setupScales] Successfully created scales."); // Success log
+        return { yScale, colorScale, axisXPosition }; // Return valid scales
 
-    } catch (error) { console.error("[setupScales] Error:", error); return defaultReturn; }
+    } catch (error) {
+        console.error("[setupScales] Error during scale creation:", error);
+        return defaultReturn; // Explicitly return default object on any unexpected error
+    }
 }
 
 function calculateArcPath(d, yScale, axisXPosition) {
@@ -65,7 +92,7 @@ function getArcStyle(link, selectedNodeId, hoveredNodeId) {
 }
 
 // Arc Drawing Helper
-function drawAndUpdateArcs(selection, links, yScale, colorScale, axisXPosition, nodeMap, selectedNodeId) {
+function drawAndUpdateArcs(selection, links, yScale, colorScale, axisXPosition, nodeMap, selectedNodeId, hoveredNodeId) { // Added hoveredNodeId for initial style
     const MAX_ARCS_TO_RENDER = 1000;
     const linksToDraw = links.length > MAX_ARCS_TO_RENDER ? links.slice(0, MAX_ARCS_TO_RENDER) : links;
     if (links.length > MAX_ARCS_TO_RENDER) { console.warn(`[drawAndUpdateArcs] Rendering limited to ${MAX_ARCS_TO_RENDER} arcs.`); }
@@ -73,10 +100,10 @@ function drawAndUpdateArcs(selection, links, yScale, colorScale, axisXPosition, 
     const paths = selection.selectAll("path.arc-path").data(linksToDraw, d => `${d.source}-${d.target}`);
 
     paths.join(
-        enter => enter.append("path").attr("class", "arc-path").attr("fill", "none").attr("stroke", d => colorScale(nodeMap.get(d.source)?.book || 'Unknown')).attr("d", d => calculateArcPath(d, yScale, axisXPosition)).each(function(d) { const style = getArcStyle(d, selectedNodeId, null); d3.select(this).attr("stroke-width", style.strokeWidth).attr("stroke-opacity", 0); }).call(enter => enter.transition("fadeInArc").duration(300).style("stroke-opacity", function(d) { return getArcStyle(d, selectedNodeId, null).strokeOpacity; }) ).call(enter => enter.append("title").text(d => { const s=getNodeMetadata(d.source), t=getNodeMetadata(d.target); return `${s.label||d.source} → ${t.label||d.target}`; })),
+        enter => enter.append("path").attr("class", "arc-path").attr("fill", "none").attr("stroke", d => colorScale(nodeMap.get(d.source)?.book || 'Unknown')).attr("d", d => calculateArcPath(d, yScale, axisXPosition)).each(function(d) { const style = getArcStyle(d, selectedNodeId, hoveredNodeId); d3.select(this).attr("stroke-width", style.strokeWidth).attr("stroke-opacity", 0); }).call(enter => enter.transition("fadeInArc").duration(300).style("stroke-opacity", function(d) { return getArcStyle(d, selectedNodeId, null).strokeOpacity; }) ).call(enter => enter.append("title").text(d => { const s=getNodeMetadata(d.source), t=getNodeMetadata(d.target); return `${s.label||d.source} → ${t.label||d.target}`; })),
         update => update
                      .call(update => update.transition("arcUpdatePosColor").duration(250).attr("stroke", d => colorScale(nodeMap.get(d.source)?.book || 'Unknown')).attr("d", d => calculateArcPath(d, yScale, axisXPosition)))
-                     .each(function(d) { const style = getArcStyle(d, selectedNodeId, null); d3.select(this).attr("stroke-width", style.strokeWidth).attr("stroke-opacity", style.strokeOpacity); }) // Apply styles directly
+                     .each(function(d) { const style = getArcStyle(d, selectedNodeId, hoveredNodeId); d3.select(this).attr("stroke-width", style.strokeWidth).attr("stroke-opacity", style.strokeOpacity); }) // Apply styles directly
                      .select("title").text(d => { const s=getNodeMetadata(d.source), t=getNodeMetadata(d.target); return `${s.label||d.source} → ${t.label||d.target}`; }),
         exit => exit.transition("fadeOutArc").duration(200).style("opacity", 0).remove()
     );
@@ -104,7 +131,7 @@ function ArcDiagram({
   const zoomGroupRef = useRef();
   const nodeMap = useRef(new Map()).current;
   const zoomBehaviorRef = useRef();
-  const localHoveredNodeId = useRef(null);
+  const localHoveredNodeId = useRef(null); // Local ref for hover state
 
   // --- Main Effect for Drawing/Updating ---
   useEffect(() => {
@@ -113,11 +140,11 @@ function ArcDiagram({
     if (!svgRef?.current || !zoomGroupRef?.current) return;
     const rootSvg = d3.select(svgRef.current);
     const zoomGroup = d3.select(zoomGroupRef.current);
-    zoomGroup.selectAll("g.dynamic-hover-info").remove();
+    zoomGroup.selectAll("g.dynamic-hover-info").remove(); // Clear previous hover info
 
     if (!data || !data.nodes || data.nodes.length === 0 || !width || width <= 10 || !height || height <= 50) {
         // console.log('[ArcDiagram Effect] Aborting draw: Invalid data or dimensions.');
-        zoomGroup.selectAll("*").remove(); return;
+        zoomGroup.selectAll("*").remove(); return; // Exit effect early
     }
 
     // Define Parameters & Styles
@@ -129,6 +156,7 @@ function ArcDiagram({
         selectedFillOpacity: 0.9, hoverFillOpacity: 1.0, defaultFillOpacity: 0.7,
         selectedFontWeight: 'bold', defaultFontWeight: 'normal', transitionDuration: transitionDuration
     };
+    // const dimmedArcOpacity = 0.1; // Defined in getArcStyle
 
     // Build Node Map
     nodeMap.clear(); data.nodes.forEach((node, index) => nodeMap.set(node.id, { index: index, ...node }));
@@ -182,12 +210,18 @@ function ArcDiagram({
      const handleClick = (event, d) => { if (onNodeSelect) onNodeSelect(d.id); event.stopPropagation(); };
 
     // --- Draw Elements ---
+    // Pass null for hoveredId on initial draw/update
     drawAndUpdateArcs(arcsContainer, data.links, yScale, colorScale, axisXPosition, nodeMap, selectedNodeId, null);
     drawAndUpdateNodes(nodesContainer, data.nodes, yScale, colorScale, nodeRadius, axisXPosition, labelFontSize, labelXOffset, { mouseover: handleMouseOver, mouseout: handleMouseOut, click: handleClick }, selectedNodeId, styles);
 
     // Explicitly Re-apply Arc Styles AFTER Join
     arcsContainer.selectAll('path.arc-path')
-        .each(function(d) { const style = getArcStyle(d, selectedNodeId, null); d3.select(this).attr('stroke-opacity', style.strokeOpacity).attr('stroke-width', style.strokeWidth); });
+        .each(function(d) {
+            const style = getArcStyle(d, selectedNodeId, null); // Apply style based on selection only
+            d3.select(this)
+                .attr('stroke-opacity', style.strokeOpacity) // Use attr for immediate effect
+                .attr('stroke-width', style.strokeWidth);
+        });
 
     // --- D3 Zoom Setup ---
     const handleZoom = (event) => { zoomGroup.attr('transform', event.transform); };
