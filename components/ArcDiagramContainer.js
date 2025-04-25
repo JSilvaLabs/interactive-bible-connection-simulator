@@ -1,4 +1,4 @@
-// components/ArcDiagramContainer.js (MRP v1.9 - Reduce Mobile Vertical Margin)
+// components/ArcDiagramContainer.js (MRP v1.10 - Minimize Mobile Margins)
 "use client";
 
 import React, { useRef } from 'react';
@@ -11,15 +11,15 @@ function ArcDiagramContainer({
     const svgRef = useRef();
 
     const isSmallScreenWidth = width < 640; // sm breakpoint
-    const horizontalMargin = isSmallScreenWidth ? 20 : 40;
+    const horizontalMargin = isSmallScreenWidth ? 10 : 30; // Reduced H margins
 
     // Define different vertical margins
     const mobileVerticalMargin = 5; // Further Reduced from 10
     const desktopVerticalMargin = 15;// Further Reduced from 20
     const verticalMargin = isSmallScreenWidth ? mobileVerticalMargin : desktopVerticalMargin;
 
-    // Adjust left margin based on screen width
-    const leftMargin = isSmallScreenWidth ? 50 : 150;
+    // Reduce left margin further for mobile
+    const leftMargin = isSmallScreenWidth ? 40 : 150; // Reduced mobile left
 
     const margin = {
         top: verticalMargin,

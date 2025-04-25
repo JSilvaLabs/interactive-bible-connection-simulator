@@ -1,11 +1,11 @@
-// components/ReferenceSelector.js (MRP v1.8 - Responsive Widths)
+// components/ReferenceSelector.js (MRP v1.10 - Simplified Widths)
 "use client";
 
 import React from 'react';
 
 /**
  * Component providing dropdowns for selecting Bible Book, Chapter, and Verse.
- * MRP v1.8: Adjusts dropdown widths for better single-row layout on mobile.
+ * MRP v1.10: Removes explicit mobile widths, relies on flex-wrap in parent.
  */
 function ReferenceSelector({
     bookList = [], chapterList = [], verseList = [],
@@ -23,20 +23,17 @@ function ReferenceSelector({
     const baseLabelClasses = "sr-only";
 
     return (
-        // This parent div in page.js will control overall wrapping.
-        // Inside here, encourage shrinking/specific widths for mobile.
-        // Use flex-nowrap internally, rely on grandparent to wrap the whole control block
-        <div className="flex flex-nowrap gap-2 items-center justify-center sm:justify-start w-full sm:w-auto">
+        // Use flex-wrap and let items take natural width, allow shrinking
+        <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start">
             {/* --- Book Selector --- */}
-            {/* Give Book more space, allow shrinking, then grow on larger screens */}
+            {/* REMOVED Width classes, added flex-shrink */}
             <label htmlFor="book-select" className={baseLabelClasses}>Select Bible Book</label>
             <select
                 id="book-select"
                 value={selectedBook || ""}
                 onChange={handleBookSelect}
                 disabled={isDisabled || bookList.length === 0}
-                // w-2/5 takes ~40%, flex-shrink allows it to shrink if needed, min-w-0 prevents minimum size issues, sm:w-auto resets on small screens+
-                className={`${baseSelectClasses} w-2/5 flex-shrink min-w-0 sm:w-auto sm:flex-shrink-0`}
+                className={`${baseSelectClasses} flex-shrink min-w-[80px]`} // Allow shrinking, set a min-width
                 aria-label="Select Bible Book"
                 aria-disabled={isDisabled || bookList.length === 0}
                 aria-describedby={bookList.length === 0 ? "book-select-loading-desc" : undefined}
@@ -50,15 +47,14 @@ function ReferenceSelector({
 
 
             {/* --- Chapter Selector --- */}
-            {/* Give less space, allow shrinking, reset on larger screens */}
+            {/* REMOVED Width classes, added flex-shrink */}
             <label htmlFor="chapter-select" className={baseLabelClasses}>Select Bible Chapter</label>
             <select
                 id="chapter-select"
                 value={selectedChapter || ""}
                 onChange={handleChapterSelect}
                 disabled={isDisabled || !selectedBook || chapterList.length === 0}
-                 // w-1/4 takes ~25%
-                className={`${baseSelectClasses} w-1/4 flex-shrink min-w-0 sm:w-auto sm:flex-shrink-0`}
+                className={`${baseSelectClasses} flex-shrink min-w-[60px]`} // Allow shrinking, set a min-width
                 aria-label="Select Bible Chapter"
                 aria-disabled={isDisabled || !selectedBook || chapterList.length === 0}
                 aria-describedby={!selectedBook ? "chapter-select-disabled-desc" : undefined}
@@ -68,19 +64,19 @@ function ReferenceSelector({
                     <option key={chap} value={chap}>{chap}</option>
                 ))}
             </select>
-             {!selectedBook && <span id="chapter-select-disabled-desc" className="sr-only">Select a book first to enable chapters.</span>}
+             {!selectedBook && <span id="chapter-select-disabled-desc" className="sr-only">Select a book first.</span>}
 
             {/* --- Verse Selector (Conditional) --- */}
-            {viewMode === 'verse' && ( // Show placeholder even if no chapter selected in verse mode
+            {viewMode === 'verse' && (
                 <>
+                    {/* REMOVED Width classes, added flex-shrink */}
                     <label htmlFor="verse-select" className={baseLabelClasses}>Select Bible Verse</label>
                     <select
                         id="verse-select"
                         value={selectedVerse || ""}
                         onChange={handleVerseSelect}
                         disabled={isDisabled || !selectedChapter || verseList.length === 0} // Disable if no chapter selected
-                        // w-1/4 takes ~25%
-                        className={`${baseSelectClasses} w-1/4 flex-shrink min-w-0 sm:w-auto sm:flex-shrink-0`}
+                        className={`${baseSelectClasses} flex-shrink min-w-[60px]`} // Allow shrinking, set a min-width
                         aria-label="Select Bible Verse (Optional)"
                         aria-disabled={isDisabled || !selectedChapter || verseList.length === 0}
                         aria-describedby={verseList.length === 0 && selectedChapter ? "verse-select-loading-desc" : undefined}
@@ -90,6 +86,7 @@ function ReferenceSelector({
                             <option key={verse} value={verse}>{verse}</option>
                         ))}
                     </select>
+                     {/* Accessible description for screen readers when disabled */}
                      {verseList.length === 0 && selectedChapter && <span id="verse-select-loading-desc" className="sr-only">Verses are loading or unavailable for this chapter.</span>}
                 </>
             )}
