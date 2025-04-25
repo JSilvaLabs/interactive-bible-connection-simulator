@@ -1,11 +1,11 @@
-// app/page.js (MRP v1.8 - Adjust Control Layout)
+// app/page.js (MRP v1.11 - Remove Fixed Height from Viz Container)
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
 // Import custom hooks
 import { useBibleData } from '@/hooks/useBibleData';
 import { useVisualizationState } from '@/hooks/useVisualizationState';
-import { useResponsiveDimensions } from '@/hooks/useResponsiveDimensions';
+import { useResponsiveDimensions } from '@/hooks/useResponsiveDimensions'; // Use updated hook
 
 // Import UI Components
 import ArcDiagramContainer from '@/components/ArcDiagramContainer';
@@ -18,7 +18,7 @@ import AboutModal from '@/components/AboutModal';
 export default function MainPage() {
     // --- Hooks, State, Callbacks ---
     const { bibleData, allReferencesData, bookList, isLoadingData: isLoadingCoreData, error: dataError } = useBibleData();
-    const { dimensions } = useResponsiveDimensions();
+    const { dimensions } = useResponsiveDimensions(); // Hook now focuses on width primarily
     const {
         selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
         filteredConnectionData, selectedNodeId, isLoadingConnections, filterError,
@@ -42,11 +42,11 @@ export default function MainPage() {
 
     return (
         <>
-            {/* Remove fixed height/overflow from main for scrolling */}
+            {/* Allow scrolling on main element */}
             <main className="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                 {/* Header Area */}
-                <header id="main-header" className="flex-shrink-0 w-full p-2 md:p-3 shadow-md bg-white dark:bg-gray-800 z-20 sticky top-0"> {/* Make header sticky */}
-                    <div className="max-w-screen-xl mx-auto flex flex-col gap-2"> {/* Stack controls vertically by default */}
+                <header id="main-header" className="flex-shrink-0 w-full p-2 md:p-3 shadow-md bg-white dark:bg-gray-800 z-20 sticky top-0">
+                    <div className="max-w-screen-xl mx-auto flex flex-col gap-2">
                         {/* Top Row: Title */}
                         <div className="flex justify-between items-center w-full">
                              <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
@@ -54,10 +54,9 @@ export default function MainPage() {
                              </h1>
                         </div>
                         {/* Control Rows Area */}
-                        {/* Allow wrapping overall, but justify center on mobile, start on sm+ */}
                         <div id="controls-area" className="w-full flex flex-wrap gap-y-2 gap-x-4 items-center justify-center sm:justify-start">
-                             {/* Group 1: Selectors - Allow this group to wrap if needed, but internally try not to */}
-                             <div className="flex-shrink-0"> {/* Prevent this group from shrinking excessively */}
+                             {/* Group 1: Selectors */}
+                             <div className="flex-shrink-0">
                                  <ReferenceSelector
                                     bookList={bookList}
                                     chapterList={chapterList}
@@ -72,8 +71,8 @@ export default function MainPage() {
                                     viewMode={viewMode}
                                 />
                              </div>
-                             {/* Group 2: Buttons - Allow wrapping independently */}
-                             <div className="flex flex-wrap gap-2 justify-center sm:justify-start flex-shrink-0"> {/* Buttons shouldn't shrink */}
+                             {/* Group 2: Buttons */}
+                             <div className="flex flex-wrap gap-2 justify-center sm:justify-start flex-shrink-0">
                                 <ViewToggle
                                     currentView={viewMode}
                                     onToggle={handleToggleView}
@@ -101,17 +100,18 @@ export default function MainPage() {
                  {/* Use default block layout for mobile stacking, lg:flex-row for desktop */}
                  <div className="w-full max-w-screen-xl mx-auto flex-grow flex flex-col lg:flex-row gap-3 p-2 md:p-3">
                     {/* Visualization Area */}
-                     {/* Define height for mobile, allow flex basis for desktop */}
-                     <div className="w-full h-[60vh] lg:h-auto lg:flex-1 border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1 viz-container">
+                     {/* Removed h-[60vh], keep lg:flex-1 */}
+                     <div className="w-full lg:flex-1 border border-gray-300 dark:border-gray-700 shadow-lg rounded-lg flex justify-center items-center bg-white dark:bg-gray-900 relative overflow-hidden p-1 viz-container">
                          {isLoadingConnections && (
                             <div className="absolute inset-0 bg-gray-500 bg-opacity-50 dark:bg-gray-800 dark:bg-opacity-60 flex justify-center items-center z-10 rounded-lg"><span className="text-white dark:text-gray-200 font-semibold text-lg animate-pulse p-4 bg-gray-700 dark:bg-gray-600 rounded shadow-xl">Loading...</span></div>
                          )}
+                         {/* Pass dimensions from hook. Diagram will use height prop, but container can stretch */}
                          {dimensions.width > 0 && dimensions.height > 0 ? (
                              <ArcDiagramContainer
                                 data={filteredConnectionData}
                                 isLoading={isLoadingCoreData || isLoadingConnections || !selectedChapter}
-                                width={dimensions.width}
-                                height={dimensions.height}
+                                width={dimensions.width} // Calculated width
+                                height={dimensions.height} // Suggested height (e.g., based on width)
                                 selectedNodeId={selectedNodeId}
                                 onNodeSelect={handleNodeSelect}
                                 resetZoomTrigger={resetZoomKey}
@@ -148,7 +148,7 @@ export default function MainPage() {
                 <footer id="main-footer" className="flex-shrink-0 w-full mt-auto py-2 px-3 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 z-10">
                     {/* Moved About button here */}
                     <button onClick={openAboutModal} className="text-blue-600 dark:text-blue-400 hover:underline mx-2">About</button> |
-                    <span className="mx-2">MRP v1.8 | Developed by JSilvaLabs - Global Minister Education</span> {/* Updated version */}
+                    <span className="mx-2">MRP v1.11 | Developed by JSilvaLabs - Global Minister Education</span> {/* Updated version */}
                 </footer>
             </main>
 
