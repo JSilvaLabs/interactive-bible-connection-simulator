@@ -1,4 +1,4 @@
-// app/page.js (MRP v1.2 - Fixed JSX Error & Removed Hover Props)
+// app/page.js (MRP v1.4 - Pass viewMode to ArcDiagramContainer)
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
@@ -21,10 +21,10 @@ export default function MainPage() {
     const { dimensions } = useResponsiveDimensions();
     const {
         selectedBook, selectedChapter, selectedVerse, viewMode, chapterList, verseList,
-        filteredConnectionData, selectedNodeId, // Removed: hoveredNodeId
+        filteredConnectionData, selectedNodeId,
         isLoadingConnections, filterError,
         handleBookChange, handleChapterChange, handleVerseChange, handleToggleView,
-        handleNodeSelect // Removed: handleNodeHoverStart, handleNodeHoverEnd
+        handleNodeSelect
     } = useVisualizationState(bibleData, allReferencesData);
 
     // --- Local State ---
@@ -54,9 +54,12 @@ export default function MainPage() {
                 {/* Header Area */}
                 <header id="main-header" className="flex-shrink-0 w-full p-2 md:p-3 shadow-md bg-white dark:bg-gray-800 z-20">
                     <div className="max-w-screen-xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-                         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                            Bible Connections Explorer
-                        </h1>
+                         {/* Multi-line Title */}
+                         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 text-center sm:text-left">
+                            <div>Bible</div>
+                            <div>Connections</div>
+                            <div>Explorer</div>
+                         </h1>
                         <div id="controls-area" className="flex flex-wrap gap-2 items-center justify-center sm:justify-end">
                              <ReferenceSelector
                                 bookList={bookList}
@@ -94,7 +97,7 @@ export default function MainPage() {
                              </button>
                         </div>
                     </div>
-                    {/* CORRECTED: Display Filtering Errors Below Controls */}
+                    {/* Display Filtering Errors Below Controls */}
                     {filterError && (
                          <div className="max-w-screen-xl mx-auto text-center text-red-500 dark:text-red-400 text-xs pt-1">{filterError}</div>
                      )}
@@ -115,8 +118,8 @@ export default function MainPage() {
                                 height={dimensions.height}
                                 selectedNodeId={selectedNodeId}
                                 onNodeSelect={handleNodeSelect}
-                                // Removed hover handlers
                                 resetZoomTrigger={resetZoomKey}
+                                viewMode={viewMode} // <-- Pass viewMode PROP HERE
                             />
                          ) : ( <div className="text-gray-500 dark:text-gray-400">Calculating size...</div> )}
                     </div>
@@ -126,9 +129,9 @@ export default function MainPage() {
                          <div className="flex-1 min-h-0">
                              <TextDisplayPanel
                                 selectedNodeId={selectedNodeId}
-                                // Removed hoveredNodeId prop
                                 bibleData={bibleData}
                                 isLoadingBibleData={isLoadingCoreData}
+                                viewMode={viewMode} // Pass viewMode prop
                             />
                          </div>
                          <div className="flex-1 min-h-0">
@@ -143,7 +146,8 @@ export default function MainPage() {
 
                 {/* Footer Area */}
                 <footer id="main-footer" className="flex-shrink-0 py-1 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
-                    MRP v1.1 | Developed by JSilvaLabs - Global Minister Education
+                    {/* Update version number as needed */}
+                    MRP v1.2 | Developed by JSilvaLabs - Global Minister Education
                 </footer>
             </main>
 
