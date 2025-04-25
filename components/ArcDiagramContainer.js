@@ -1,4 +1,4 @@
-// components/ArcDiagramContainer.js (MRP v1.8 - Responsive Vertical Margins)
+// components/ArcDiagramContainer.js (MRP v1.9 - Reduce Mobile Vertical Margin)
 "use client";
 
 import React, { useRef } from 'react';
@@ -10,17 +10,16 @@ function ArcDiagramContainer({
 }) {
     const svgRef = useRef();
 
-    // Determine responsive horizontal margins
     const isSmallScreenWidth = width < 640; // sm breakpoint
     const horizontalMargin = isSmallScreenWidth ? 20 : 40;
 
     // Define different vertical margins
-    const mobileVerticalMargin = 10; // Smaller margin for mobile
-    const desktopVerticalMargin = 20;// Keep slightly larger for desktop
+    const mobileVerticalMargin = 5; // Further Reduced from 10
+    const desktopVerticalMargin = 15;// Further Reduced from 20
     const verticalMargin = isSmallScreenWidth ? mobileVerticalMargin : desktopVerticalMargin;
 
     // Adjust left margin based on screen width
-    const leftMargin = isSmallScreenWidth ? 50 : 150; // Reduced mobile left margin slightly
+    const leftMargin = isSmallScreenWidth ? 50 : 150;
 
     const margin = {
         top: verticalMargin,
@@ -35,12 +34,12 @@ function ArcDiagramContainer({
 
     let content;
 
-    if (innerWidth <= 10 || innerHeight <= 10) { // Adjusted min height check
-         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-xs text-red-500">Too small</text> ); // Smaller text
+    if (innerWidth <= 10 || innerHeight <= 10) {
+         content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-xs text-red-500">Too small</text> );
     } else if (isLoading) {
-        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading...</text> ); // Shorter text
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 animate-pulse">Loading...</text> );
     } else if (!data || !data.nodes || data.nodes.length === 0) {
-        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">{ !data ? "Select Book/Ch." : "No connections." }</text> ); // Shorter text
+        content = ( <text x={width / 2} y={height / 2} textAnchor="middle" className="text-gray-500 dark:text-gray-400 text-sm px-2 text-center">{ !data ? "Select Book/Ch." : "No connections." }</text> );
     } else {
         content = (
             <g transform={`translate(${margin.left},${margin.top})`}>
