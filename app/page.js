@@ -6,6 +6,7 @@ import React, { useState, useCallback, memo } from 'react';
 import { useBibleData } from '@/hooks/useBibleData';
 import { useVisualizationState } from '@/hooks/useVisualizationState';
 import { useResponsiveDimensions } from '@/hooks/useResponsiveDimensions'; // Use updated hook
+import PptxGenJS from 'pptxgenjs';
 
 // Import UI Components
 import ArcDiagramContainer from '@/components/ArcDiagramContainer';
@@ -26,11 +27,89 @@ export default function MainPage() {
      } = useVisualizationState(bibleData, allReferencesData);
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [resetZoomKey, setResetZoomKey] = useState(0);
+    const [isExporting, setIsExporting] = useState(false);
     const triggerZoomReset = useCallback(() => { setResetZoomKey(k => k + 1); }, []);
     const openAboutModal = useCallback(() => { setIsAboutModalOpen(true); }, []);
     const closeAboutModal = useCallback(() => { setIsAboutModalOpen(false); }, []);
     const isProcessing = isLoadingCoreData || isLoadingConnections;
 
+    const exportToPowerPoint = useCallback(async () => {
+        if (!filteredConnectionData || !bibleData) return;
+        
+        setIsExporting(true);
+        try {
+            const pptx = new PptxGenJS();
+            
+            // Slide 1: Title
+            const titleSlide = pptx.addSlide();
+            titleSlide.addText('Bible Connections Visualization', {
+                x: 1,
+                y: 1,
+                w: '90%',
+                h: 1,
+                fontSize: 44,
+                align: 'center',
+                color: '363636'
+            });
+
+            // Slide 2: Selection Details
+            const selectionSlide = pptx.addSlide();
+            selectionSlide.addText('Selected Reference', {
+                x: 0.5,
+                y: 0.5,
+                w: '90%',
+                fontSize: 32,
+                color: '363636'
+            });
+            
+            const detailsText = [
+                `Book: ${selectedBook}`,
+                `Chapter: ${selectedChapter}`,
+                selectedVerse ? `Verse: ${selectedVerse}` : ''
+            ].filter(Boolean).join('\n');
+
+            selectionSlide.addText(detailsText, {
+                x: 0.5,
+                y: 1.5,
+                w: '90%',
+                fontSize: 24,
+                color: '666666'
+            });
+
+            // Slide 3: Visualization
+            const vizSlide = pptx.addSlide();
+            vizSlide.addText('Connection Visualization', {
+                x: 0.5,
+                y: 0.5,
+                w: '90%',
+                fontSize: 32,
+                color: '363636'
+            });
+
+            // Get the SVG element
+            const svgElement = document.querySelector('.viz-container svg');
+            if (svgElement) {
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
+                vizSlide.addImage({
+                    data: `data:image/svg+xml;base64,${svgBase64}`,
+                    x: 0.5,
+                    y: 1.5,
+                    w: '90%',
+                    h: '70%'
+                });
+            }
+
+            // Generate and download the presentation
+            const fileName = `Bible_Connections_${selectedBook}_${selectedChapter}${selectedVerse ? `_${selectedVerse}` : ''}_${new Date().toISOString().split('T')[0]}.pptx`;
+            await pptx.writeFile({ fileName });
+        } catch (error) {
+            console.error('Error generating PowerPoint:', error);
+            alert('Error generating PowerPoint file. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    }, [filteredConnectionData, bibleData, selectedBook, selectedChapter, selectedVerse]);
 
     // --- Render Logic (Loading/Error states remain the same) ---
     if (isLoadingCoreData && !dataError) {
@@ -86,6 +165,15 @@ export default function MainPage() {
                                     aria-disabled={isProcessing || !filteredConnectionData?.nodes?.length}
                                 >
                                     Reset View
+                                </button>
+                                <button
+                                    onClick={exportToPowerPoint}
+                                    className="px-3 py-1 border rounded text-xs bg-blue-500 text-white hover:enabled:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    title="Export to PowerPoint"
+                                    disabled={isProcessing || !filteredConnectionData?.nodes?.length || isExporting}
+                                    aria-disabled={isProcessing || !filteredConnectionData?.nodes?.length || isExporting}
+                                >
+                                    {isExporting ? 'Exporting...' : 'Export PPT'}
                                 </button>
                              </div>
                         </div>
